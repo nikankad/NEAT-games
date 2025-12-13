@@ -3,7 +3,7 @@ import pygame
 import random
 import time
 from pygame.locals import *
-from game.model import NeatModel
+# from model import NeatModel
 # ==================== GAME CONSTANTS ====================
 # Screen dimensions
 SCREEN_WIDHT = 400
