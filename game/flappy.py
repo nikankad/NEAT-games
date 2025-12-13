@@ -1,7 +1,9 @@
 # Flappy Bird Game - Main Game Loop
-import pygame, random, time
+import pygame
+import random
+import time
 from pygame.locals import *
-
+from game.model import NeatModel
 # ==================== GAME CONSTANTS ====================
 # Screen dimensions
 SCREEN_WIDHT = 400
@@ -23,7 +25,7 @@ PIPE_HEIGHT = 500
 # Gap between upper and lower pipes
 PIPE_GAP = 150
 
-#fps 
+# fps
 fps = 30
 
 # Audio file paths
@@ -33,8 +35,11 @@ hit = 'game/assets/audio/hit.wav'    # Sound when bird hits obstacle
 # Initialize pygame mixer for sound effects
 pygame.mixer.init()
 
+# i need to have a dict of the flappy birds values vals: {PositionX, PositionY, Distance From next pipe }
 
 # ==================== BIRD CLASS ====================
+
+
 class Bird(pygame.sprite.Sprite):
     """Represents the flappy bird character"""
 
@@ -43,7 +48,8 @@ class Bird(pygame.sprite.Sprite):
 
         # Load bird animation frames (3 different wing positions)
         self.images = [pygame.image.load('game/assets/sprites/bluebird-upflap.png').convert_alpha(),
-                       pygame.image.load('game/assets/sprites/bluebird-midflap.png').convert_alpha(),
+                       pygame.image.load(
+                           'game/assets/sprites/bluebird-midflap.png').convert_alpha(),
                        pygame.image.load('game/assets/sprites/bluebird-downflap.png').convert_alpha()]
 
         # Initial vertical velocity
@@ -51,7 +57,8 @@ class Bird(pygame.sprite.Sprite):
 
         # Animation frame counter
         self.current_image = 0
-        self.image = pygame.image.load('game/assets/sprites/bluebird-upflap.png').convert_alpha()
+        self.image = pygame.image.load(
+            'game/assets/sprites/bluebird-upflap.png').convert_alpha()
         # Create collision mask from image
         self.mask = pygame.mask.from_surface(self.image)
 
@@ -81,6 +88,8 @@ class Bird(pygame.sprite.Sprite):
         self.image = self.images[self.current_image]
 
 # ==================== PIPE CLASS ====================
+
+
 class Pipe(pygame.sprite.Sprite):
     """Represents a pipe obstacle"""
 
@@ -88,8 +97,10 @@ class Pipe(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
         # Load pipe sprite
-        self.image = pygame.image.load('game/assets/sprites/pipe-green.png').convert_alpha()
-        self.image = pygame.transform.scale(self.image, (PIPE_WIDHT, PIPE_HEIGHT))
+        self.image = pygame.image.load(
+            'game/assets/sprites/pipe-green.png').convert_alpha()
+        self.image = pygame.transform.scale(
+            self.image, (PIPE_WIDHT, PIPE_HEIGHT))
 
         # Set pipe position
         self.rect = self.image.get_rect()
@@ -111,17 +122,18 @@ class Pipe(pygame.sprite.Sprite):
         """Move pipe to the left"""
         self.rect[0] -= GAME_SPEED
 
-        
 
 # ==================== GROUND CLASS ====================
 class Ground(pygame.sprite.Sprite):
     """Represents the ground at the bottom of the screen"""
-    
+
     def __init__(self, xpos):
         pygame.sprite.Sprite.__init__(self)
         # Load ground sprite
-        self.image = pygame.image.load('game/assets/sprites/base.png').convert_alpha()
-        self.image = pygame.transform.scale(self.image, (GROUND_WIDHT, GROUND_HEIGHT))
+        self.image = pygame.image.load(
+            'game/assets/sprites/base.png').convert_alpha()
+        self.image = pygame.transform.scale(
+            self.image, (GROUND_WIDHT, GROUND_HEIGHT))
 
         # Create collision mask
         self.mask = pygame.mask.from_surface(self.image)
@@ -130,15 +142,18 @@ class Ground(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect[0] = xpos
         self.rect[1] = SCREEN_HEIGHT - GROUND_HEIGHT
-    
+
     def update(self):
         """Move ground to the left"""
         self.rect[0] -= GAME_SPEED
 
 # ==================== UTILITY FUNCTIONS ====================
+
+
 def is_off_screen(sprite):
     """Check if a sprite has moved off the left side of the screen"""
     return sprite.rect[0] < -(sprite.rect[2])
+
 
 def get_random_pipes(xpos):
     """Generate a random pipe pair (top and bottom pipes with random gap)"""
@@ -159,7 +174,8 @@ pygame.display.set_caption('Flappy Bird')
 # Load game images
 BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
 BACKGROUND = pygame.transform.scale(BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
-BEGIN_IMAGE = pygame.image.load('game/assets/sprites/message.png').convert_alpha()
+BEGIN_IMAGE = pygame.image.load(
+    'game/assets/sprites/message.png').convert_alpha()
 
 # Create sprite groups for collision detection and rendering
 bird_group = pygame.sprite.Group()
@@ -169,13 +185,13 @@ bird_group.add(bird)
 # Create ground sprites (two for continuous scrolling)
 ground_group = pygame.sprite.Group()
 
-for i in range (2):
+for i in range(2):
     ground = Ground(GROUND_WIDHT * i)
     ground_group.add(ground)
 
 # Create initial pipe pairs
 pipe_group = pygame.sprite.Group()
-for i in range (2):
+for i in range(2):
     pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
     pipe_group.add(pipes[0])
     pipe_group.add(pipes[1])
@@ -192,6 +208,21 @@ begin = True  # Flag to control menu/start screen loop
 while begin:
 
     clock.tick(60)
+
+    # feed nn data
+    # Get next pipe
+    next_pipe = None
+    for pipe in pipe_group:
+        if pipe.rect[0] > bird.rect[0]:
+            next_pipe = pipe
+            break
+
+    data = {
+        'bird_x': bird.rect[0],
+        'bird_y': bird.rect[1],
+        'pipe_distance_x': next_pipe.rect[0] - bird.rect[0] if next_pipe else 0,
+        'pipe_distance_y': next_pipe.rect[1] - bird.rect[1] if next_pipe else 0
+    }
 
     for event in pygame.event.get():
         if event.type == QUIT:
@@ -242,7 +273,7 @@ while True:
 
         new_ground = Ground(GROUND_WIDHT - 20)
         ground_group.add(new_ground)
-    
+
     if is_off_screen(pipe_group.sprites()[0]):
         pipe_group.remove(pipe_group.sprites()[0])
         pipe_group.remove(pipe_group.sprites()[0])
@@ -251,7 +282,7 @@ while True:
 
         pipe_group.add(pipes[0])
         pipe_group.add(pipes[1])
-        
+
         score += 1
 
     bird_group.update()
@@ -261,7 +292,7 @@ while True:
     bird_group.draw(screen)
     pipe_group.draw(screen)
     ground_group.draw(screen)
-    
+
     # Display score
     score_text = font.render(str(score), True, (255, 255, 255))
     screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
@@ -273,13 +304,13 @@ while True:
         pygame.mixer.music.load(hit)
         pygame.mixer.music.play()
         time.sleep(1)
-        
+
         # ==================== GAME OVER SCREEN ====================
         # Display game over screen and wait for restart
         game_over = True
         while game_over:
             clock.tick(fps)
-            
+
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
@@ -287,32 +318,31 @@ while True:
                 if event.type == KEYDOWN:
                     if event.key == K_SPACE or event.key == K_UP:
                         game_over = False
-            
+
             screen.blit(BACKGROUND, (0, 0))
             screen.blit(BEGIN_IMAGE, (120, 150))
             bird_group.draw(screen)
             pipe_group.draw(screen)
             ground_group.draw(screen)
-            
+
             pygame.display.update()
-        
+
         # ==================== GAME RESET ====================
         # Reset score and all sprites for new game
         score = 0
         bird_group.empty()
         bird = Bird()
         bird_group.add(bird)
-        
+
         pipe_group.empty()
         for i in range(2):
             pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
             pipe_group.add(pipes[0])
             pipe_group.add(pipes[1])
-        
+
         ground_group.empty()
         for i in range(2):
             ground = Ground(GROUND_WIDHT * i)
             ground_group.add(ground)
-        
-        continue
 
+        continue
