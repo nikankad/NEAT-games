@@ -2,6 +2,7 @@
 import pygame
 import random
 import time
+import neat
 from pygame.locals import *
 # from model import NeatModel
 # ==================== GAME CONSTANTS ====================
@@ -165,6 +166,13 @@ def get_random_pipes(xpos):
     pipe_inverted = Pipe(True, xpos, SCREEN_HEIGHT - size - PIPE_GAP)
     return pipe, pipe_inverted
 
+def reset_env():
+        screen.blit(BACKGROUND, (0, 0))
+        screen.blit(BEGIN_IMAGE, (120, 150))
+        bird_group.draw(screen)
+        pipe_group.draw(screen)
+        ground_group.draw(screen)
+        pygame.display.update()
 
 # ==================== GAME INITIALIZATION ====================
 pygame.init()
@@ -196,153 +204,122 @@ for i in range(2):
     pipe_group.add(pipes[0])
     pipe_group.add(pipes[1])
 
-# Game state variables
-clock = pygame.time.Clock()
 
-score = 0  # Player score (increments when passing pipes)
-font = pygame.font.Font(None, 74)  # Font for score display
 
 begin = True  # Flag to control menu/start screen loop
 
-# ==================== MENU/START SCREEN LOOP ====================
-while begin:
 
-    clock.tick(60)
+def evolve_genome(genome, config):
+    done = False
+    net = neat.nn.FeedForwardNetwork(genome, config)
 
-    # feed nn data
-    # Get next pipe
-    next_pipe = None
-    for pipe in pipe_group:
-        if pipe.rect[0] > bird.rect[0]:
-            next_pipe = pipe
-            break
+    #reset enviroment
 
-    data = {
-        'bird_x': bird.rect[0],
-        'bird_y': bird.rect[1],
-        'pipe_distance_x': next_pipe.rect[0] - bird.rect[0] if next_pipe else 0,
-        'pipe_distance_y': next_pipe.rect[1] - bird.rect[1] if next_pipe else 0
-    }
+    #game loop 
+    while not done:
+        inputs
 
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-        if event.type == KEYDOWN:
-            if event.key == K_SPACE or event.key == K_UP:
-                bird.bump()
-                pygame.mixer.music.load(wing)
-                pygame.mixer.music.play()
-                begin = False
+    
 
-    screen.blit(BACKGROUND, (0, 0))
-    screen.blit(BEGIN_IMAGE, (120, 150))
 
-    if is_off_screen(ground_group.sprites()[0]):
-        ground_group.remove(ground_group.sprites()[0])
-
-        new_ground = Ground(GROUND_WIDHT - 20)
-        ground_group.add(new_ground)
-
-    bird.begin()
-    ground_group.update()
-
-    bird_group.draw(screen)
-    ground_group.draw(screen)
-
-    pygame.display.update()
-
+def fuin():
+    score = 0  # Player score (increments when passing pipes)
+    font = pygame.font.Font(None, 74)  # Font for score display
+    # Game state variables
+    clock = pygame.time.Clock()
 
 # ==================== MAIN GAME LOOP ====================
-while True:
+    while True:
+        clock.tick(fps)
 
-    clock.tick(fps)
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+            if event.type == KEYDOWN:
+                if event.key == K_SPACE or event.key == K_UP:
+                    bird.bump()
+                    pygame.mixer.music.load(wing)
+                    pygame.mixer.music.play()
 
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-        if event.type == KEYDOWN:
-            if event.key == K_SPACE or event.key == K_UP:
-                bird.bump()
-                pygame.mixer.music.load(wing)
-                pygame.mixer.music.play()
+        screen.blit(BACKGROUND, (0, 0))
 
-    screen.blit(BACKGROUND, (0, 0))
+        if is_off_screen(ground_group.sprites()[0]):
+            ground_group.remove(ground_group.sprites()[0])
 
-    if is_off_screen(ground_group.sprites()[0]):
-        ground_group.remove(ground_group.sprites()[0])
+            new_ground = Ground(GROUND_WIDHT - 20)
+            ground_group.add(new_ground)
 
-        new_ground = Ground(GROUND_WIDHT - 20)
-        ground_group.add(new_ground)
+        if is_off_screen(pipe_group.sprites()[0]):
+            pipe_group.remove(pipe_group.sprites()[0])
+            pipe_group.remove(pipe_group.sprites()[0])
 
-    if is_off_screen(pipe_group.sprites()[0]):
-        pipe_group.remove(pipe_group.sprites()[0])
-        pipe_group.remove(pipe_group.sprites()[0])
+            pipes = get_random_pipes(SCREEN_WIDHT * 2)
 
-        pipes = get_random_pipes(SCREEN_WIDHT * 2)
-
-        pipe_group.add(pipes[0])
-        pipe_group.add(pipes[1])
-
-        score += 1
-
-    bird_group.update()
-    ground_group.update()
-    pipe_group.update()
-
-    bird_group.draw(screen)
-    pipe_group.draw(screen)
-    ground_group.draw(screen)
-
-    # Display score
-    score_text = font.render(str(score), True, (255, 255, 255))
-    screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
-
-    pygame.display.update()
-
-    if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
-            pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
-        pygame.mixer.music.load(hit)
-        pygame.mixer.music.play()
-        time.sleep(1)
-
-        # ==================== GAME OVER SCREEN ====================
-        # Display game over screen and wait for restart
-        game_over = True
-        while game_over:
-            clock.tick(fps)
-
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    pygame.quit()
-                    exit()
-                if event.type == KEYDOWN:
-                    if event.key == K_SPACE or event.key == K_UP:
-                        game_over = False
-
-            screen.blit(BACKGROUND, (0, 0))
-            screen.blit(BEGIN_IMAGE, (120, 150))
-            bird_group.draw(screen)
-            pipe_group.draw(screen)
-            ground_group.draw(screen)
-
-            pygame.display.update()
-
-        # ==================== GAME RESET ====================
-        # Reset score and all sprites for new game
-        score = 0
-        bird_group.empty()
-        bird = Bird()
-        bird_group.add(bird)
-
-        pipe_group.empty()
-        for i in range(2):
-            pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
             pipe_group.add(pipes[0])
             pipe_group.add(pipes[1])
 
-        ground_group.empty()
-        for i in range(2):
-            ground = Ground(GROUND_WIDHT * i)
-            ground_group.add(ground)
+            score += 1
 
-        continue
+        bird_group.update()
+        ground_group.update()
+        pipe_group.update()
+
+        bird_group.draw(screen)
+        pipe_group.draw(screen)
+        ground_group.draw(screen)
+
+        # Display score
+        score_text = font.render(str(score), True, (255, 255, 255))
+        screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
+
+        pygame.display.update()
+
+        if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
+                pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
+            pygame.mixer.music.load(hit)
+            pygame.mixer.music.play()
+            time.sleep(1)
+
+            # # ==================== GAME OVER SCREEN ====================
+            # # Display game over screen and wait for restart
+            # game_over = True
+            # while game_over:
+            #     clock.tick(fps)
+
+            #     for event in pygame.event.get():
+            #         if event.type == QUIT:
+            #             pygame.quit()
+            #             exit()
+            #         if event.type == KEYDOWN:
+            #             if event.key == K_SPACE or event.key == K_UP:
+            #                 game_over = False
+
+            #     screen.blit(BACKGROUND, (0, 0))
+            #     screen.blit(BEGIN_IMAGE, (120, 150))
+            #     bird_group.draw(screen)
+            #     pipe_group.draw(screen)
+            #     ground_group.draw(screen)
+
+            #     pygame.display.update()
+
+            # ==================== GAME RESET ====================
+            # Reset score and all sprites for new game
+            score = 0
+            bird_group.empty()
+            bird = Bird()
+            bird_group.add(bird)
+
+            pipe_group.empty()
+            for i in range(2):
+                pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
+                pipe_group.add(pipes[0])
+                pipe_group.add(pipes[1])
+
+            ground_group.empty()
+            for i in range(2):
+                ground = Ground(GROUND_WIDHT * i)
+                ground_group.add(ground)
+
+            continue
+
+fuin()
