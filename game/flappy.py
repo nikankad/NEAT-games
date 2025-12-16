@@ -157,21 +157,14 @@ def is_off_screen(sprite):
 
 def get_random_pipes(xpos):
     """Generate a random pipe pair (top and bottom pipes with random gap)"""
-    # Random height for bottom pipe (determines gap position)
-    size = 250
+    size = random.randint(150, 400)
     # Create bottom pipe
     pipe = Pipe(False, xpos, size)
     # Create top pipe with consistent gap
     pipe_inverted = Pipe(True, xpos, SCREEN_HEIGHT - size - PIPE_GAP)
     return pipe, pipe_inverted
 
-def reset_env():
-        screen.blit(BACKGROUND, (0, 0))
-        screen.blit(BEGIN_IMAGE, (120, 150))
-        bird_group.draw(screen)
-        pipe_group.draw(screen)
-        ground_group.draw(screen)
-        pygame.display.update()
+
 
 def run_bird(genomes, config):
     """
@@ -279,8 +272,6 @@ def run_bird(genomes, config):
             if output[0] > 0.5:
                     bird.bump()
 
-      #update birds and fitness
-        remaining_birds = 0
     
         # update sprites
         bird_group.update()
@@ -303,7 +294,7 @@ def run_bird(genomes, config):
                 g.fitness += 5
             score += 1
             # EARLY STOP CONDITION
-            if score > 5:
+            if score >= 20:
                 for g in ge:
                     g.fitness+=10
                 return
