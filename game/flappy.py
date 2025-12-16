@@ -15,7 +15,7 @@ SCREEN_HEIGHT = 600
 # Bird movement constants
 SPEED = 20  # Flap strength
 GRAVITY = 2.0  # Falling acceleration
-GAME_SPEED = 10  # Speed of pipes and ground moving
+GAME_SPEED =40  # Speed of pipes and ground moving
 
 # Ground dimensions
 GROUND_WIDHT = 2 * SCREEN_WIDHT
@@ -26,7 +26,7 @@ PIPE_WIDHT = 80
 PIPE_HEIGHT = 500
 
 # Gap between upper and lower pipes
-PIPE_GAP = 150
+PIPE_GAP =  200
 
 # fps
 fps = 30
@@ -50,10 +50,10 @@ class Bird(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
 
         # Load bird animation frames (3 different wing positions)
-        self.images = [pygame.image.load('game/assets/sprites/bluebird-upflap.png').convert_alpha(),
-                       pygame.image.load(
-                           'game/assets/sprites/bluebird-midflap.png').convert_alpha(),
-                       pygame.image.load('game/assets/sprites/bluebird-downflap.png').convert_alpha()]
+        bird_color = random.choice(['bluebird', 'redbird', 'yellowbird'])
+        self.images = [pygame.image.load(f'game/assets/sprites/{bird_color}-upflap.png').convert_alpha(),
+                   pygame.image.load(f'game/assets/sprites/{bird_color}-midflap.png').convert_alpha(),
+                   pygame.image.load(f'game/assets/sprites/{bird_color}-downflap.png').convert_alpha()]
 
         # Initial vertical velocity
         self.speed = SPEED
@@ -106,7 +106,7 @@ class Pipe(pygame.sprite.Sprite):
         # Set pipe position
         self.rect = self.image.get_rect()
         self.rect[0] = xpos
-
+        self.inverted = inverted
         # Position pipe (inverted is top pipe, normal is bottom pipe)
         if inverted:
             # Flip image upside down for top pipe
@@ -259,7 +259,7 @@ def run_bird(genomes, config):
         for index, bird in enumerate(birds):
             next_pipe = None
             for pipe in pipe_group:
-                if pipe.rect[0] > bird.rect[0]:
+                if not pipe.inverted and pipe.rect.right > bird.rect.left:
                     next_pipe = pipe
                     break
             # Neural network inputs:
@@ -267,7 +267,12 @@ def run_bird(genomes, config):
             # [1] Horizontal distance to next pipe (gap between bird and pipe)
             # [2] Vertical distance to next pipe (how far above/below the pipe gap the bird is)
             # [3] Bird's current velocity (negative = falling, positive = rising)
-            inputs = [bird.rect[1], next_pipe.rect[0] - bird.rect[0] if next_pipe else 0, next_pipe.rect[1] - bird.rect[1] if next_pipe else 0, -bird.speed]
+            inputs = [
+                bird.rect[1] / SCREEN_HEIGHT,                          # 0-1 range
+                (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT,    # 0-1 range
+                (next_pipe.rect.top - PIPE_GAP / 2 - bird.rect.centery) / SCREEN_HEIGHT,    # normalized
+                bird.speed / 20                                          # normalized
+            ]
             output = nets[index].activate(inputs)
             if output[0] > 0.5:
                     bird.bump()
@@ -277,9 +282,8 @@ def run_bird(genomes, config):
         bird_group.update()
         pipe_group.update()
         ground_group.update()
-        for g in ge:
-            g.fitness += 0.001 
-            
+        for i in range(len(ge)):
+            ge[i].fitness += 0.05            
         screen.blit(BACKGROUND, (0, 0))
 
         if is_off_screen(pipe_group.sprites()[0]):
@@ -294,10 +298,10 @@ def run_bird(genomes, config):
                 g.fitness += 5
             score += 1
             # EARLY STOP CONDITION
-            if score >= 20:
-                for g in ge:
-                    g.fitness+=10
-                return
+            # if score >= 4:
+            #     for g in ge:
+            #         g.fitness+=10
+            #     return
         if is_off_screen(ground_group.sprites()[0]):
             ground_group.remove(ground_group.sprites()[0])
 
@@ -341,19 +345,21 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_bird, 50)
+    winner = p.run(run_bird, 200)
     print("Best fitness:", winner.fitness)
     visualize.draw_net(
         config,
         winner,
-        view=True,              # open image automatically
-        filename="best_net.gv", # Graphviz file
+        view=True,
+        filename="best_net.gv",
         node_names={
-            0: "bird_y",
-            1: "dx_pipe",
-            2: "dy_gap",
-            3: "velocity",
-            4: "flap"
+            0: "Bird Y Position",
+            1: "Distance to Pipe",
+            2: "Distance to Gap",
+            3: "Bird Velocity",
+            4: "Flap Decision"
         }
     )
+    # visualize.plot_stats(stats, ylog=False, view=True, filename="fitness_plot.svg")
 
+    visualize.plot_species(stats, view=True, filename="species_plot.svg")
