@@ -3,6 +3,8 @@ import pygame
 import random
 import time
 import neat
+import visualize
+
 from pygame.locals import *
 # from model import NeatModel
 # ==================== GAME CONSTANTS ====================
@@ -298,8 +300,13 @@ def run_bird(genomes, config):
             pipe_group.add(pipes[0])
             pipe_group.add(pipes[1])
             for g in ge:
-                ge[i].fitness += 5
+                g.fitness += 5
             score += 1
+            # EARLY STOP CONDITION
+            if score > 5:
+                for g in ge:
+                    g.fitness+=10
+                return
         if is_off_screen(ground_group.sprites()[0]):
             ground_group.remove(ground_group.sprites()[0])
 
@@ -343,4 +350,19 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    p.run(run_bird, 50)
+    winner = p.run(run_bird, 50)
+    print("Best fitness:", winner.fitness)
+    visualize.draw_net(
+        config,
+        winner,
+        view=True,              # open image automatically
+        filename="best_net.gv", # Graphviz file
+        node_names={
+            0: "bird_y",
+            1: "dx_pipe",
+            2: "dy_gap",
+            3: "velocity",
+            4: "flap"
+        }
+    )
+
