@@ -1,4 +1,5 @@
 # Flappy Bird Game - Main Game Loop
+import pickle
 import pygame
 import random
 import time
@@ -15,14 +16,14 @@ SCREEN_HEIGHT = 600
 # Bird movement constants
 SPEED = 20  # Flap strength
 GRAVITY = 2.0  # Falling acceleration
-GAME_SPEED =40  # Speed of pipes and ground moving
+GAME_SPEED =50  # Speed of pipes and ground moving
 
 # Ground dimensions
 GROUND_WIDHT = 2 * SCREEN_WIDHT
 GROUND_HEIGHT = 100
 
 # Pipe dimensions
-PIPE_WIDHT = 80
+PIPE_WIDHT = 70
 PIPE_HEIGHT = 500
 
 # Gap between upper and lower pipes
@@ -69,7 +70,7 @@ class Bird(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect[0] = SCREEN_WIDHT / 6
         self.rect[1] = SCREEN_HEIGHT / 2
-
+        self.score = 0
     def update(self):
         """Update bird animation and apply gravity"""
         # Cycle through animation frames
@@ -118,6 +119,9 @@ class Pipe(pygame.sprite.Sprite):
 
         # Create collision mask
         self.mask = pygame.mask.from_surface(self.image)
+        
+        # Track which birds have passed this pipe
+        self.passed_birds = set()
 
     def update(self):
         """Move pipe to the left"""
@@ -167,33 +171,6 @@ def get_random_pipes(xpos):
 
 
 def run_bird(genomes, config):
-    """
-    Runs the Flappy Bird game with AI-controlled birds using NEAT algorithm.
-    This function initializes a Pygame environment and simulates multiple birds
-    controlled by neural networks evolved via NEAT (NeuroEvolution of Augmenting
-    Topologies). Each bird's behavior is determined by its neural network, which
-    takes visual inputs and decides when to jump.
-    Args:
-        genomes (list): List of tuples containing (genome_id, genome_object) from NEAT.
-        config (neat.config.Config): NEAT configuration object containing network parameters.
-    Returns:
-        None
-    Game Mechanics:
-        - Birds are controlled by neural networks that receive 4 inputs:
-          1. Bird's Y position (vertical screen position)
-          2. Horizontal distance to next pipe
-          3. Vertical distance to next pipe
-          4. Bird's current velocity (negative = falling, positive = rising)
-        - Output > 0.5 triggers a jump (bump)
-        - Fitness increases when birds successfully pass pipe pairs
-        - Birds are removed when colliding with pipes or ground
-    Note:
-        - Consider updating fitness incrementally when pipes are passed (current approach)
-          rather than only at the end, as this provides better feedback for evolution
-        - The function has a global 'generation' variable reference
-        - Currently has a bug: resetting only one bird during collision instead of
-          removing that specific bird from the population
-    """
     nets = []
     ge = []
     birds = []
@@ -227,7 +204,7 @@ def run_bird(genomes, config):
         pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
         pipe_group.add(pipes[0])
         pipe_group.add(pipes[1])
-    for id, g in genomes:
+    for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
         g.fitness = 0 
@@ -255,6 +232,20 @@ def run_bird(genomes, config):
             if event.type == QUIT:
                 pygame.quit()
 
+        # Check if birds have passed pipes and reward them
+                # Check if birds have passed pipes and reward them
+        for pipe in pipe_group:
+            if not pipe.inverted:  # Only check bottom pipes to avoid double-counting
+                for i, bird in enumerate(birds):
+                    # Bird has passed the pipe if bird's left edge is past pipe's right edge
+                    if bird.rect.left > pipe.rect.right and bird not in pipe.passed_birds:  # Use bird object
+                        pipe.passed_birds.add(bird)  # Store bird object, not index
+                        ge[i].fitness += 5
+                        bird.score += 1
+                        print("1")
+
+
+
         #input data and get result from network 
         for index, bird in enumerate(birds):
             next_pipe = None
@@ -262,19 +253,17 @@ def run_bird(genomes, config):
                 if not pipe.inverted and pipe.rect.right > bird.rect.left:
                     next_pipe = pipe
                     break
-            # Neural network inputs:
-            # [0] Bird's Y position (vertical position on screen)
-            # [1] Horizontal distance to next pipe (gap between bird and pipe)
-            # [2] Vertical distance to next pipe (how far above/below the pipe gap the bird is)
-            # [3] Bird's current velocity (negative = falling, positive = rising)
-            inputs = [
-                bird.rect[1] / SCREEN_HEIGHT,                          # 0-1 range
-                (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT,    # 0-1 range
-                (next_pipe.rect.top - PIPE_GAP / 2 - bird.rect.centery) / SCREEN_HEIGHT,    # normalized
-                bird.speed / 20                                          # normalized
-            ]
+            
+
+            inputs = [ bird.rect[1] / SCREEN_HEIGHT, # 0-1 range 
+                     (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT, 
+                     # 0-1 range 
+                     (next_pipe.rect.top - PIPE_GAP / 2 - bird.rect.centery) / SCREEN_HEIGHT, 
+                     # normalized 
+                     bird.speed / 20,  ]
+
             output = nets[index].activate(inputs)
-            if output[0] > 0.5:
+            if output[0] > 0.0:
                     bird.bump()
 
     
@@ -283,9 +272,8 @@ def run_bird(genomes, config):
         pipe_group.update()
         ground_group.update()
         for i in range(len(ge)):
-            ge[i].fitness += 0.05            
+            ge[i].fitness += 0.01           
         screen.blit(BACKGROUND, (0, 0))
-
         if is_off_screen(pipe_group.sprites()[0]):
             pipe_group.remove(pipe_group.sprites()[0])
             pipe_group.remove(pipe_group.sprites()[0])
@@ -294,14 +282,8 @@ def run_bird(genomes, config):
 
             pipe_group.add(pipes[0])
             pipe_group.add(pipes[1])
-            for g in ge:
-                g.fitness += 5
+           
             score += 1
-            # EARLY STOP CONDITION
-            # if score >= 4:
-            #     for g in ge:
-            #         g.fitness+=10
-            #     return
         if is_off_screen(ground_group.sprites()[0]):
             ground_group.remove(ground_group.sprites()[0])
 
@@ -319,7 +301,7 @@ def run_bird(genomes, config):
                     out_of_bounds = (bird.rect[1] > SCREEN_HEIGHT or bird.rect[1] < 0)
 
                     if(hit_ground or hit_pipe or out_of_bounds):
-                        ge[i].fitness -= 1
+                        ge[i].fitness -=1
                         bird_group.remove(bird)
                         birds.pop(i)
                         nets.pop(i)
@@ -327,12 +309,15 @@ def run_bird(genomes, config):
 
         score_text = font.render(str(score), True, (255, 255, 255))
         screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
-
+        # Show generation info (optional)
+        small_font = pygame.font.Font(None, 30)
+        birds_text = small_font.render(f'Birds: {len(birds)}', True, (255, 255, 255))
+        screen.blit(birds_text, (10, 10))
         pygame.display.update()
 
 if __name__ == "__main__":
     # Set configuration file
-    config_path = "model\config-flappybird.txt"
+    config_path = "game\config-flappybird.txt"
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                 neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
@@ -345,21 +330,15 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_bird, 200)
+    winner = p.run(run_bird, 10)
     print("Best fitness:", winner.fitness)
-    visualize.draw_net(
-        config,
-        winner,
-        view=True,
-        filename="best_net.gv",
-        node_names={
-            0: "Bird Y Position",
-            1: "Distance to Pipe",
-            2: "Distance to Gap",
-            3: "Bird Velocity",
-            4: "Flap Decision"
-        }
-    )
-    # visualize.plot_stats(stats, ylog=False, view=True, filename="fitness_plot.svg")
+    # Visualize the best network
+    node_names = {
+        -1: "Bird Y",
+        -2: "Dist to Pipe",
+        -3: "Dist to Gap",
 
-    visualize.plot_species(stats, view=True, filename="species_plot.svg")
+
+
+    }
+
