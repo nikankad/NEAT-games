@@ -12,8 +12,8 @@ SCREEN_HEIGHT = 600
 
 # Bird movement constants
 SPEED = 20  # Flap strength
-GRAVITY = 2.5  # Falling acceleration
-GAME_SPEED = 15  # Speed of pipes and ground moving
+GRAVITY = 2.0  # Falling acceleration
+GAME_SPEED = 10  # Speed of pipes and ground moving
 
 # Ground dimensions
 GROUND_WIDHT = 2 * SCREEN_WIDHT
@@ -88,8 +88,6 @@ class Bird(pygame.sprite.Sprite):
         self.current_image = (self.current_image + 1) % 3
         self.image = self.images[self.current_image]
 
-# ==================== PIPE CLASS ====================
-
 
 class Pipe(pygame.sprite.Sprite):
     """Represents a pipe obstacle"""
@@ -148,7 +146,6 @@ class Ground(pygame.sprite.Sprite):
         """Move ground to the left"""
         self.rect[0] -= GAME_SPEED
 
-# ==================== UTILITY FUNCTIONS ====================
 
 
 def is_off_screen(sprite):
@@ -159,7 +156,7 @@ def is_off_screen(sprite):
 def get_random_pipes(xpos):
     """Generate a random pipe pair (top and bottom pipes with random gap)"""
     # Random height for bottom pipe (determines gap position)
-    size = random.randint(100, 300)
+    size = 250
     # Create bottom pipe
     pipe = Pipe(False, xpos, size)
     # Create top pipe with consistent gap
@@ -174,80 +171,123 @@ def reset_env():
         ground_group.draw(screen)
         pygame.display.update()
 
-# ==================== GAME INITIALIZATION ====================
-pygame.init()
-screen = pygame.display.set_mode((SCREEN_WIDHT, SCREEN_HEIGHT))
-pygame.display.set_caption('Flappy Bird')
+def run_bird(genomes, config):
+    """
+    Runs the Flappy Bird game with AI-controlled birds using NEAT algorithm.
+    This function initializes a Pygame environment and simulates multiple birds
+    controlled by neural networks evolved via NEAT (NeuroEvolution of Augmenting
+    Topologies). Each bird's behavior is determined by its neural network, which
+    takes visual inputs and decides when to jump.
+    Args:
+        genomes (list): List of tuples containing (genome_id, genome_object) from NEAT.
+        config (neat.config.Config): NEAT configuration object containing network parameters.
+    Returns:
+        None
+    Game Mechanics:
+        - Birds are controlled by neural networks that receive 4 inputs:
+          1. Bird's Y position (vertical screen position)
+          2. Horizontal distance to next pipe
+          3. Vertical distance to next pipe
+          4. Bird's current velocity (negative = falling, positive = rising)
+        - Output > 0.5 triggers a jump (bump)
+        - Fitness increases when birds successfully pass pipe pairs
+        - Birds are removed when colliding with pipes or ground
+    Note:
+        - Consider updating fitness incrementally when pipes are passed (current approach)
+          rather than only at the end, as this provides better feedback for evolution
+        - The function has a global 'generation' variable reference
+        - Currently has a bug: resetting only one bird during collision instead of
+          removing that specific bird from the population
+    """
+    nets = []
+    ge = []
+    birds = []
+  #init game
+    # ==================== GAME INITIALIZATION ====================
+    pygame.init()
+    screen = pygame.display.set_mode((SCREEN_WIDHT, SCREEN_HEIGHT))
+    pygame.display.set_caption('Flappy Bird')
 
-# Load game images
-BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
-BACKGROUND = pygame.transform.scale(BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
-BEGIN_IMAGE = pygame.image.load(
-    'game/assets/sprites/message.png').convert_alpha()
+    # Load game images
+    BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
+    BACKGROUND = pygame.transform.scale(BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
+    BEGIN_IMAGE = pygame.image.load(
+        'game/assets/sprites/message.png').convert_alpha()
 
-# Create sprite groups for collision detection and rendering
-bird_group = pygame.sprite.Group()
-bird = Bird()
-bird_group.add(bird)
+    # Create sprite groups for collision detection and rendering
+    bird_group = pygame.sprite.Group()
+    # bird = Bird()
+    # bird_group.add(bird)
 
-# Create ground sprites (two for continuous scrolling)
-ground_group = pygame.sprite.Group()
+    # Create ground sprites (two for continuous scrolling)
+    ground_group = pygame.sprite.Group()
 
-for i in range(2):
-    ground = Ground(GROUND_WIDHT * i)
-    ground_group.add(ground)
+    for i in range(2):
+        ground = Ground(GROUND_WIDHT * i)
+        ground_group.add(ground)
 
-# Create initial pipe pairs
-pipe_group = pygame.sprite.Group()
-for i in range(2):
-    pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
-    pipe_group.add(pipes[0])
-    pipe_group.add(pipes[1])
+    # Create initial pipe pairs
+    pipe_group = pygame.sprite.Group()
+    for i in range(2):
+        pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
+        pipe_group.add(pipes[0])
+        pipe_group.add(pipes[1])
+    for id, g in genomes:
+        net = neat.nn.FeedForwardNetwork.create(g, config)
+        nets.append(net)
+        g.fitness = 0 
+        #init bird
+        bird = Bird()
+        birds.append(bird)
+        bird_group.add(bird)
+        ge.append(g)          # ← MISSING LINE
 
-
-
-begin = True  # Flag to control menu/start screen loop
-
-
-def evolve_genome(genome, config):
-    done = False
-    net = neat.nn.FeedForwardNetwork(genome, config)
-
-    #reset enviroment
-
-    #game loop 
-    while not done:
-        inputs
-
-    
+        #MAIN LOOP
+    global generation
 
 
-def fuin():
+        
     score = 0  # Player score (increments when passing pipes)
     font = pygame.font.Font(None, 74)  # Font for score display
     # Game state variables
     clock = pygame.time.Clock()
 
-# ==================== MAIN GAME LOOP ====================
-    while True:
+    # ==================== MAIN GAME LOOP ====================
+    while birds: 
         clock.tick(fps)
 
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
-            if event.type == KEYDOWN:
-                if event.key == K_SPACE or event.key == K_UP:
+
+        #input data and get result from network 
+        for index, bird in enumerate(birds):
+            next_pipe = None
+            for pipe in pipe_group:
+                if pipe.rect[0] > bird.rect[0]:
+                    next_pipe = pipe
+                    break
+            # Neural network inputs:
+            # [0] Bird's Y position (vertical position on screen)
+            # [1] Horizontal distance to next pipe (gap between bird and pipe)
+            # [2] Vertical distance to next pipe (how far above/below the pipe gap the bird is)
+            # [3] Bird's current velocity (negative = falling, positive = rising)
+            inputs = [bird.rect[1], next_pipe.rect[0] - bird.rect[0] if next_pipe else 0, next_pipe.rect[1] - bird.rect[1] if next_pipe else 0, -bird.speed]
+            output = nets[index].activate(inputs)
+            if output[0] > 0.5:
                     bird.bump()
-                    pygame.mixer.music.load(wing)
-                    pygame.mixer.music.play()
 
+      #update birds and fitness
+        remaining_birds = 0
+    
+        # update sprites
+        bird_group.update()
+        pipe_group.update()
+        ground_group.update()
+        for g in ge:
+            g.fitness += 0.001 
+            
         screen.blit(BACKGROUND, (0, 0))
-
-        if is_off_screen(ground_group.sprites()[0]):
-            ground_group.remove(ground_group.sprites()[0])
-
-            new_ground = Ground(GROUND_WIDHT - 20)
-            ground_group.add(new_ground)
 
         if is_off_screen(pipe_group.sprites()[0]):
             pipe_group.remove(pipe_group.sprites()[0])
@@ -257,69 +297,50 @@ def fuin():
 
             pipe_group.add(pipes[0])
             pipe_group.add(pipes[1])
-
+            for g in ge:
+                ge[i].fitness += 5
             score += 1
+        if is_off_screen(ground_group.sprites()[0]):
+            ground_group.remove(ground_group.sprites()[0])
 
-        bird_group.update()
-        ground_group.update()
-        pipe_group.update()
+            new_ground = Ground(GROUND_WIDHT - 20)
+            ground_group.add(new_ground)
+            
 
         bird_group.draw(screen)
         pipe_group.draw(screen)
         ground_group.draw(screen)
+        for i in reversed(range(len(birds))):
+                    bird = birds[i]
+                    hit_ground = pygame.sprite.spritecollideany(bird, ground_group, pygame.sprite.collide_mask)
+                    hit_pipe = pygame.sprite.spritecollideany(bird, pipe_group, pygame.sprite.collide_mask)
+                    out_of_bounds = (bird.rect[1] > SCREEN_HEIGHT or bird.rect[1] < 0)
 
-        # Display score
+                    if(hit_ground or hit_pipe or out_of_bounds):
+                        ge[i].fitness -= 1
+                        bird_group.remove(bird)
+                        birds.pop(i)
+                        nets.pop(i)
+                        ge.pop(i)
+
         score_text = font.render(str(score), True, (255, 255, 255))
         screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
 
         pygame.display.update()
 
-        if (pygame.sprite.groupcollide(bird_group, ground_group, False, False, pygame.sprite.collide_mask) or
-                pygame.sprite.groupcollide(bird_group, pipe_group, False, False, pygame.sprite.collide_mask)):
-            pygame.mixer.music.load(hit)
-            pygame.mixer.music.play()
-            time.sleep(1)
+if __name__ == "__main__":
+    # Set configuration file
+    config_path = "model\config-flappybird.txt"
+    config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
+                                neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
-            # # ==================== GAME OVER SCREEN ====================
-            # # Display game over screen and wait for restart
-            # game_over = True
-            # while game_over:
-            #     clock.tick(fps)
+    # Create core evolution algorithm class
+    p = neat.Population(config)
 
-            #     for event in pygame.event.get():
-            #         if event.type == QUIT:
-            #             pygame.quit()
-            #             exit()
-            #         if event.type == KEYDOWN:
-            #             if event.key == K_SPACE or event.key == K_UP:
-            #                 game_over = False
+    # Add reporter for fancy statistical result
+    p.add_reporter(neat.StdOutReporter(True))
+    stats = neat.StatisticsReporter()
+    p.add_reporter(stats)
 
-            #     screen.blit(BACKGROUND, (0, 0))
-            #     screen.blit(BEGIN_IMAGE, (120, 150))
-            #     bird_group.draw(screen)
-            #     pipe_group.draw(screen)
-            #     ground_group.draw(screen)
-
-            #     pygame.display.update()
-
-            # ==================== GAME RESET ====================
-            # Reset score and all sprites for new game
-            score = 0
-            bird_group.empty()
-            bird = Bird()
-            bird_group.add(bird)
-
-            pipe_group.empty()
-            for i in range(2):
-                pipes = get_random_pipes(SCREEN_WIDHT * i + 800)
-                pipe_group.add(pipes[0])
-                pipe_group.add(pipes[1])
-
-            ground_group.empty()
-            for i in range(2):
-                ground = Ground(GROUND_WIDHT * i)
-                ground_group.add(ground)
-
-            continue
-
-fuin()
+    # Run NEAT
+    p.run(run_bird, 50)
