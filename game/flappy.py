@@ -16,7 +16,7 @@ SCREEN_HEIGHT = 600
 # Bird movement constants
 SPEED = 20  # Flap strength
 GRAVITY = 2.0  # Falling acceleration
-GAME_SPEED =50  # Speed of pipes and ground moving
+GAME_SPEED =30  # Speed of pipes and ground moving
 
 # Ground dimensions
 GROUND_WIDHT = 2 * SCREEN_WIDHT
@@ -183,8 +183,6 @@ def run_bird(genomes, config):
     # Load game images
     BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
     BACKGROUND = pygame.transform.scale(BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
-    BEGIN_IMAGE = pygame.image.load(
-        'game/assets/sprites/message.png').convert_alpha()
 
     # Create sprite groups for collision detection and rendering
     bird_group = pygame.sprite.Group()
@@ -214,7 +212,6 @@ def run_bird(genomes, config):
         bird_group.add(bird)
         ge.append(g)          # ← MISSING LINE
 
-        #MAIN LOOP
     global generation
 
 
@@ -232,6 +229,9 @@ def run_bird(genomes, config):
             if event.type == QUIT:
                 pygame.quit()
 
+        for i in range(len(ge)):
+            ge[i].fitness += 0.001           
+
         # Check if birds have passed pipes and reward them
                 # Check if birds have passed pipes and reward them
         for pipe in pipe_group:
@@ -242,7 +242,9 @@ def run_bird(genomes, config):
                         pipe.passed_birds.add(bird)  # Store bird object, not index
                         ge[i].fitness += 5
                         bird.score += 1
-                        print("1")
+                        if bird.score == 20:
+                            ge[i].fitness += 10
+
 
 
 
@@ -255,12 +257,12 @@ def run_bird(genomes, config):
                     break
             
 
-            inputs = [ bird.rect[1] / SCREEN_HEIGHT, # 0-1 range 
-                     (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT, 
-                     # 0-1 range 
-                     (next_pipe.rect.top - PIPE_GAP / 2 - bird.rect.centery) / SCREEN_HEIGHT, 
-                     # normalized 
-                     bird.speed / 20,  ]
+            inputs = [
+                    bird.rect[1] / SCREEN_HEIGHT, # 0-1 range 
+                    (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT, 
+                    (next_pipe.rect.top - PIPE_GAP / 2 - bird.rect.centery) / SCREEN_HEIGHT, 
+                    bird.speed / 20,  
+            ]
 
             output = nets[index].activate(inputs)
             if output[0] > 0.0:
@@ -271,8 +273,6 @@ def run_bird(genomes, config):
         bird_group.update()
         pipe_group.update()
         ground_group.update()
-        for i in range(len(ge)):
-            ge[i].fitness += 0.01           
         screen.blit(BACKGROUND, (0, 0))
         if is_off_screen(pipe_group.sprites()[0]):
             pipe_group.remove(pipe_group.sprites()[0])
@@ -301,7 +301,7 @@ def run_bird(genomes, config):
                     out_of_bounds = (bird.rect[1] > SCREEN_HEIGHT or bird.rect[1] < 0)
 
                     if(hit_ground or hit_pipe or out_of_bounds):
-                        ge[i].fitness -=1
+                        ge[i].fitness -=4
                         bird_group.remove(bird)
                         birds.pop(i)
                         nets.pop(i)
@@ -330,7 +330,7 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_bird, 10)
+    winner = p.run(run_bird, 5)
     print("Best fitness:", winner.fitness)
     # Visualize the best network
     node_names = {
@@ -338,7 +338,7 @@ if __name__ == "__main__":
         -2: "Dist to Pipe",
         -3: "Dist to Gap",
 
-
-
     }
-
+    visualize.draw_net(config, winner, True, node_names=node_names)
+    visualize.plot_stats(stats, ylog=False, view=True)
+    visualize.plot_species(stats, view=True)
