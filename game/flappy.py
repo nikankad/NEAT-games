@@ -8,7 +8,7 @@ import visualize
 
 from pygame.locals import *
 # from model import NeatModel
-# ==================== GAME CONSTANTS ====================
+# Game constants
 # Screen dimensions
 SCREEN_WIDHT = 400
 SCREEN_HEIGHT = 600
@@ -39,9 +39,7 @@ hit = 'game/assets/audio/hit.wav'    # Sound when bird hits obstacle
 # Initialize pygame mixer for sound effects
 pygame.mixer.init()
 
-# i need to have a dict of the flappy birds values vals: {PositionX, PositionY, Distance From next pipe }
-
-# ==================== BIRD CLASS ====================
+# Sprites: Bird
 
 
 class Bird(pygame.sprite.Sprite):
@@ -128,7 +126,7 @@ class Pipe(pygame.sprite.Sprite):
         self.rect[0] -= GAME_SPEED
 
 
-# ==================== GROUND CLASS ====================
+# Sprites: Ground
 class Ground(pygame.sprite.Sprite):
     """Represents the ground at the bottom of the screen"""
 
@@ -159,7 +157,7 @@ def is_off_screen(sprite):
     return sprite.rect[0] < -(sprite.rect[2])
 
 
-def get_random_pipes(xpos):
+def get_random_pipes(xpos) -> tuple[Pipe, Pipe]: 
     """Generate a random pipe pair (top and bottom pipes with random gap)"""
     size = random.randint(150, 400)
     # Create bottom pipe
@@ -168,17 +166,18 @@ def get_random_pipes(xpos):
     pipe_inverted = Pipe(True, xpos, SCREEN_HEIGHT - size - PIPE_GAP)
     return pipe, pipe_inverted
 
-
-
+    
+ 
 def run_bird(genomes, config):
     nets = []
     ge = []
     birds = []
-  #init game
-    # ==================== GAME INITIALIZATION ====================
+
+    # Game initialization 
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDHT, SCREEN_HEIGHT))
-    pygame.display.set_caption('Flappy Bird')
+    pygame.display.set_caption('Flappy AI')
+    pygame.display.set_icon(pygame.image.load('game/assets/sprites/redbird-upflap.png'))
 
     # Load game images
     BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
@@ -210,8 +209,8 @@ def run_bird(genomes, config):
         bird = Bird()
         birds.append(bird)
         bird_group.add(bird)
-        ge.append(g)          # ← MISSING LINE
-
+        ge.append(g)        
+        
     global generation
 
 
@@ -221,8 +220,8 @@ def run_bird(genomes, config):
     # Game state variables
     clock = pygame.time.Clock()
 
-    # ==================== MAIN GAME LOOP ====================
-    while birds: 
+    # Main loop
+    while birds:
         clock.tick(fps)
 
         for event in pygame.event.get():
@@ -233,7 +232,6 @@ def run_bird(genomes, config):
             ge[i].fitness += 0.001           
 
         # Check if birds have passed pipes and reward them
-                # Check if birds have passed pipes and reward them
         for pipe in pipe_group:
             if not pipe.inverted:  # Only check bottom pipes to avoid double-counting
                 for i, bird in enumerate(birds):
@@ -245,10 +243,7 @@ def run_bird(genomes, config):
                         if bird.score == 20:
                             ge[i].fitness += 10
 
-
-
-
-        #input data and get result from network 
+        # Network input/output
         for index, bird in enumerate(birds):
             next_pipe = None
             for pipe in pipe_group:
@@ -306,7 +301,7 @@ def run_bird(genomes, config):
                         birds.pop(i)
                         nets.pop(i)
                         ge.pop(i)
-
+    
         score_text = font.render(str(score), True, (255, 255, 255))
         screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
         # Show generation info (optional)
@@ -330,7 +325,7 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_bird, 5)
+    winner = p.run(run_bird, 200)
     print("Best fitness:", winner.fitness)
     # Visualize the best network
     node_names = {
@@ -341,4 +336,5 @@ if __name__ == "__main__":
     }
     visualize.draw_net(config, winner, True, node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True)
-    visualize.plot_species(stats, view=True)
+    # visualize.plot_species(stats, view=True)
+
