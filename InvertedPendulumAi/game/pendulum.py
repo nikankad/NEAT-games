@@ -5,9 +5,9 @@ import sys
 import numpy as np
 from pygame.locals import *
 import neat
-# import utils.visualize
-
-
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+import utils.visualize as visualize
 # Configuration constants for the game
 WINDOWDIMS = (1200, 600)  # Window width and height in pixels
 CARTDIMS = (50, 10)  # Cart width and height in pixels
@@ -49,7 +49,9 @@ class InvertedPendulum(object):
         self.x_cart = np.random.uniform(0.4, 0.6) * self.WINDOWWIDTH
         self.v_cart = np.random.uniform(-1, 1)        # Angle of pendulum (theta = 0 upright, omega positive into the screen)
         # Small random perturbation to make the game more challenging
-        self.theta =np.random.uniform(-np.pi/4, np.pi/4) 
+        # self.theta =np.random.uniform(-np.pi/4, np.pi/4) 
+        self.theta =np.random.uniform(-0.01, 0.01) 
+
         self.omega = 0  # Initial angular velocity of pendulum
 
     def get_state(self):
@@ -128,12 +130,12 @@ class InvertedPendulum(object):
         elif action == "Right":
             self.v_cart += self.A_CART
         elif action == "None":
-            self.v_cart *= 0.07
+            self.v_cart *= 0.08
         else:
             raise RuntimeError("action must be 'Left', 'Right', or 'None'")
 
         # Check if pendulum has fallen (angle exceeds 90 degrees)
-        if abs(self.theta) >= np.pi / 2:
+        if (abs(self.theta) >= np.pi / 2) or self.x_cart <= self.CARTWIDTH / 2 or self.x_cart >= WINDOWDIMS[0] - self.CARTWIDTH / 2:
             self.is_dead = True
 
         return self.time, self.x_cart, self.v_cart, self.theta, self.omega
@@ -239,26 +241,25 @@ def run_pendulum(genomes, config):
 
             output = nets[i].activate(inputs)
             action = ["Left", "None", "Right"][np.argmax(output)]
-            
-            # UPDATE the physics
             pendulum.update_state(action)
-            
-            # Pre-compute array specifying corners of pendulum to be drawn
-            # This represents the pendulum shape in local coordinates before rotation
-            # now we have to draw our carts
+            dist_from_center = abs(pendulum.x_cart - WINDOWDIMS[0]/2) / (WINDOWDIMS[0]/2)
+
+            # Substantially penalize distance so staying at the edge is never profitable
+            ge[i].fitness += 0.001
+
+
             static_pendulum_array = np.array(
                 [[PENDULUMDIMS[0] / 2, 0],
                  [PENDULUMDIMS[0] / 2, 0],
                  [PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]],
                  [-PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]]]).T
             # Draw the cart as a black rectangle
-            cart = pygame.Rect(x - CARTDIMS[0] // 2,
-                               pendulum.Y_CART, CARTDIMS[0], CARTDIMS[1])
+            cart = pygame.Rect(pendulum.x_cart - CARTDIMS[0] // 2, pendulum.Y_CART, CARTDIMS[0], CARTDIMS[1])
             pygame.draw.rect(surface, pendulum.color, cart)
 
             # Transform pendulum coordinates: rotate by theta angle, then translate to cart position
-            pendulum_array = np.dot(rotation_matrix(theta), static_pendulum_array)
-            pendulum_array += np.array([[x], [pendulum.Y_CART]])
+            pendulum_array = np.dot(rotation_matrix(pendulum.theta), static_pendulum_array)
+            pendulum_array += np.array([[pendulum.x_cart], [pendulum.Y_CART]])
 
             # Draw the pendulum as a black polygon
             pygame.draw.polygon(surface, pendulum.color,
@@ -266,17 +267,17 @@ def run_pendulum(genomes, config):
                                  (pendulum_array[0, 1], pendulum_array[1, 1]),
                                  (pendulum_array[0, 2], pendulum_array[1, 2]),
                                  (pendulum_array[0, 3], pendulum_array[1, 3])))
-            ge[i].fitness += 1
-            ge[i].fitness -= abs(theta) * 2
-            ge[i].fitness -= abs(x - WINDOWDIMS[0]/2) / 200
+
             
         pygame.display.update()
         for i in reversed(range(len(pendulums))):
                 if pendulums[i].is_dead:
-                    ge[i].fitness -= 20
+                    ge[i].fitness -= 5
                     ge.pop(i)
                     nets.pop(i)
                     pendulums.pop(i)
+                    # UPDATE the physics
+
         clock.tick(REFRESHFREQ)
 
                     
@@ -301,3 +302,6 @@ if __name__ == "__main__":
     # Run NEAT
     winner = p.run(run_pendulum,  10)
     print("Best fitness:", winner.fitness)
+    # Visualize the winner network
+    visualize.draw_net(config, winner, True)
+    visualize.plot_stats(stats, ylog=False, view=True)
