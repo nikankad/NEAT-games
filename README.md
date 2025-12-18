@@ -2,6 +2,8 @@
 
 This project demonstrates the application of the **NEAT (NeuroEvolution of Augmenting Topologies)** algorithm to train AI agents to play simple games and simulations.
 
+For more information on the algorithm, refer to the original paper: [Evolving Neural Networks through Augmenting Topologies](http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf) by Kenneth O. Stanley and Risto Miikkulainen.
+
 ## Projects Included
 
 ### 1. Flappy Bird AI
