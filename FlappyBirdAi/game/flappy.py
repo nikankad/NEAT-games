@@ -1,13 +1,11 @@
 # Flappy Bird Game - Main Game Loop
-import pickle
 import pygame
 import random
-import time
 import neat
 import visualize
 
 from pygame.locals import *
-# from model import NeatModel
+
 # Game constants
 # Screen dimensions
 SCREEN_WIDHT = 400
@@ -40,7 +38,6 @@ hit = 'game/assets/audio/hit.wav'    # Sound when bird hits obstacle
 pygame.mixer.init()
 
 # Sprites: Bird
-
 
 class Bird(pygame.sprite.Sprite):
     """Represents the flappy bird character"""
@@ -121,7 +118,7 @@ class Pipe(pygame.sprite.Sprite):
         # Track which birds have passed this pipe
         self.passed_birds = set()
 
-    def update(self):
+    def update(self):   
         """Move pipe to the left"""
         self.rect[0] -= GAME_SPEED
 
