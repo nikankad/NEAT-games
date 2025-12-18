@@ -269,16 +269,15 @@ def run_pendulum(genomes, config):
                                  (pendulum_array[0, 3], pendulum_array[1, 3])))
 
             
-        pygame.display.update()
         for i in reversed(range(len(pendulums))):
                 if pendulums[i].is_dead:
                     ge[i].fitness -= 5
                     ge.pop(i)
                     nets.pop(i)
                     pendulums.pop(i)
-                    # UPDATE the physics
-
+        pygame.display.update()
         clock.tick(REFRESHFREQ)
+       
 
                     
                 
