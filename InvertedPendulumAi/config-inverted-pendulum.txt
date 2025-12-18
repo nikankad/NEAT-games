@@ -1,13 +1,13 @@
 [NEAT]
 fitness_criterion     = max
-fitness_threshold     = 500
-pop_size              = 1000
+fitness_threshold     = 100000
+pop_size              = 50
 reset_on_extinction   = False
 no_fitness_termination = False
 
 [DefaultGenome]
 # Network structure
-num_inputs              = 5
+num_inputs              = 4
 num_outputs             = 3
 num_hidden              = 0
 feed_forward            = True

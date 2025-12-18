@@ -15,15 +15,12 @@ PENDULUMDIMS = (6, 200)  # Pendulum width and length in pixels
 GRAVITY = 0.13  # Gravity acceleration factor for the pendulum
 REFRESHFREQ = 100  # Game refresh frequency (frames per second)
 A_CART = 0.15  # Cart acceleration magnitude when moving left or right
-
-
 # InvertedPendulum class: Handles the physics simulation of the inverted pendulum system
 class InvertedPendulum(object):
     def __init__(self, windowdims, cartdims, penddims, gravity, a_cart):
         # Store window dimensions
         self.WINDOWWIDTH = windowdims[0]
         self.WINDOWHEIGHT = windowdims[1]
-
         # Store cart dimensions
         self.CARTWIDTH = cartdims[0]
         self.CARTHEIGHT = cartdims[1]
@@ -38,6 +35,8 @@ class InvertedPendulum(object):
 
         # Calculate the y-coordinate of the cart (3/4 down the window)
         self.Y_CART = 3 * self.WINDOWHEIGHT / 4
+        self.color = (np.random.randint(0, 256), np.random.randint(
+            0, 256), np.random.randint(0, 256))
 
         # Initialize the pendulum state
         self.reset_state()
@@ -47,11 +46,10 @@ class InvertedPendulum(object):
         self.is_dead = False  # Tracks if the pendulum has fallen (game over)
         self.time = 0  # Time elapsed in game frames
         # Cart's initial x position (center of window)
-        self.x_cart = self.WINDOWWIDTH / 2
-        self.v_cart = 0  # Cart's initial velocity
-        # Angle of pendulum (theta = 0 upright, omega positive into the screen)
+        self.x_cart = np.random.uniform(0.4, 0.6) * self.WINDOWWIDTH
+        self.v_cart = np.random.uniform(-1, 1)        # Angle of pendulum (theta = 0 upright, omega positive into the screen)
         # Small random perturbation to make the game more challenging
-        self.theta = np.random.uniform(-0.01, 0.01)
+        self.theta =np.random.uniform(-np.pi/4, np.pi/4) 
         self.omega = 0  # Initial angular velocity of pendulum
 
     def get_state(self):
@@ -130,7 +128,7 @@ class InvertedPendulum(object):
         elif action == "Right":
             self.v_cart += self.A_CART
         elif action == "None":
-            self.v_cart = 0
+            self.v_cart *= 0.07
         else:
             raise RuntimeError("action must be 'Left', 'Right', or 'None'")
 
@@ -140,104 +138,6 @@ class InvertedPendulum(object):
 
         return self.time, self.x_cart, self.v_cart, self.theta, self.omega
 
-
-# InvertedPendulumGame class: Handles rendering and game loop for the inverted pendulum game
-class InvertedPendulumGame(object):
-    def __init__(self, windowdims, cartdims, penddims,
-                 gravity, a_cart, refreshfreq, pendulum=None):
-        # Use provided pendulum instance or create a new one
-        if pendulum is None:
-            self.pendulum = InvertedPendulum(
-                windowdims, cartdims, penddims, gravity, a_cart)
-        else:
-            self.pendulum = pendulum
-
-        # Store window dimensions
-        self.WINDOWWIDTH = windowdims[0]
-        self.WINDOWHEIGHT = windowdims[1]
-
-        # Store cart dimensions
-        self.CARTWIDTH = cartdims[0]
-        self.CARTHEIGHT = cartdims[1]
-
-        # Store pendulum dimensions
-        self.PENDULUMWIDTH = penddims[0]
-        self.PENDULUMLENGTH = penddims[1]
-
-        # Get cart y-position from pendulum object
-        self.Y_CART = self.pendulum.Y_CART
-
-        # Initialize game state variables
-        self.time = 0  # Time gives time in frames
-        self.high_score = 0  # Track the best score achieved
-
-        self.score = 0
-        self.color = (np.random.randint(0, 256), np.random.randint(
-            0, 256), np.random.randint(0, 256))
-
-        # Initialize pygame and create game window
-        pygame.init()
-        self.clock = pygame.time.Clock()
-
-        # Store refresh frequency (frames per second for state updates)
-        self.REFRESHFREQ = refreshfreq
-
-        # Create pygame display surface
-        self.surface = pygame.display.set_mode(windowdims, 0, 32)
-        pygame.display.set_caption('Inverted Pendulum Game')
-
-        # Pre-compute array specifying corners of pendulum to be drawn
-        # This represents the pendulum shape in local coordinates before rotation
-        self.static_pendulum_array = np.array(
-            [[-self.PENDULUMWIDTH / 2, 0],
-             [self.PENDULUMWIDTH / 2, 0],
-             [self.PENDULUMWIDTH / 2, -self.PENDULUMLENGTH],
-             [-self.PENDULUMWIDTH / 2, -self.PENDULUMLENGTH]]).T
-
-        # Define color constants (RGB)
-        self.BLACK = (0, 0, 0)
-        self.WHITE = (255, 255, 255)
-
-    def draw_cart(self, x, theta):
-        """
-        Renders the cart and pendulum to the game window.
-
-        Args:
-            x: X-coordinate of the cart's center
-            theta: Current angle of the pendulum (in radians)
-        """
-        # Draw the cart as a black rectangle
-        cart = pygame.Rect(x - self.CARTWIDTH // 2,
-                           self.Y_CART, self.CARTWIDTH, self.CARTHEIGHT)
-        pygame.draw.rect(self.surface, self.color, cart)
-
-        # Transform pendulum coordinates: rotate by theta angle, then translate to cart position
-        pendulum_array = np.dot(self.rotation_matrix(
-            theta), self.static_pendulum_array)
-        pendulum_array += np.array([[x], [self.Y_CART]])
-
-        # Draw the pendulum as a black polygon
-        pendulum = pygame.draw.polygon(self.surface, self.color,
-                                       ((pendulum_array[0, 0], pendulum_array[1, 0]),
-                                        (pendulum_array[0, 1],
-                                         pendulum_array[1, 1]),
-                                           (pendulum_array[0, 2],
-                                            pendulum_array[1, 2]),
-                                           (pendulum_array[0, 3], pendulum_array[1, 3])))
-
-    @staticmethod
-    def rotation_matrix(theta):
-        """
-        Creates a 2D rotation matrix for the given angle.
-
-        Args:
-            theta: Angle in radians
-
-        Returns:
-            2x2 rotation matrix
-        """
-        return np.array([[np.cos(theta), np.sin(theta)],
-                         [-1 * np.sin(theta), np.cos(theta)]])
 
     def render_text(self, text, point, position="center", fontsize=48):
         """
@@ -266,66 +166,19 @@ class InvertedPendulumGame(object):
         """Converts elapsed game frames to seconds"""
         return self.time / float(self.REFRESHFREQ)
 
-    def game_round(self):
-        """
-        Runs a single game round where the player balances the pendulum.
-        Continues until the pendulum falls (is_dead becomes True).
-        """
-        # Reset pendulum to initial state
-        self.pendulum.reset_state()
 
-        # Initialize action to no movement
-        action = "None"
+def rotation_matrix(theta):
+    """
+    Creates a 2D rotation matrix for the given angle.
 
-        # Main game loop: runs until pendulum falls
-        while not self.pendulum.is_dead:
-            # Handle user input events
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    pygame.quit()
-                    sys.exit()
+    Args:
+        theta: Angle in radians
 
-                # Detect key presses
-                if event.type == KEYDOWN:
-                    if event.key == K_LEFT:
-                        action = "Left"
-                    if event.key == K_RIGHT:
-                        action = "Right"
-
-                # Detect key releases
-                if event.type == KEYUP:
-                    if event.key == K_LEFT:
-                        action = "None"
-                    if event.key == K_RIGHT:
-                        action = "None"
-                    if event.key == K_ESCAPE:
-                        pygame.quit()
-                        sys.exit()
-
-            # Update game physics with player's action
-            t, x, _, theta, _ = self.pendulum.update_state(action)
-            self.time = t
-
-            # Clear screen with white background
-            self.surface.fill(self.WHITE)
-
-            # Draw cart and pendulum
-            self.draw_cart(x, theta)
-
-            # Display elapsed time
-            time_text = "t = {}".format(self.time_seconds())
-            self.render_text(time_text, (0.1 * self.WINDOWWIDTH, 0.1 * self.WINDOWHEIGHT),
-                             position="topleft", fontsize=40)
-
-            # Update display
-            pygame.display.update()
-
-            # Maintain constant frame rate
-            self.clock.tick(self.REFRESHFREQ)
-
-        # Update high score if current score is better
-        if (self.time_seconds()) > self.high_score:
-            self.high_score = self.time_seconds()
+    Returns:
+        2x2 rotation matrix
+    """
+    return np.array([[np.cos(theta), np.sin(theta)],
+                     [-1 * np.sin(theta), np.cos(theta)]])
 
 
 def run_pendulum(genomes, config):
@@ -345,9 +198,7 @@ def run_pendulum(genomes, config):
     high_score = 0  # Track the best score achieved
 
     score = 0
-    color = (np.random.randint(0, 256), np.random.randint(
-        0, 256), np.random.randint(0, 256))
-
+   
     # Initialize pygame and create game window
     pygame.init()
     clock = pygame.time.Clock()
@@ -358,18 +209,14 @@ def run_pendulum(genomes, config):
     surface = pygame.display.set_mode(WINDOWDIMS, 0, 32)
     pygame.display.set_caption('Inverted Pendulum Game')
 
-    # Pre-compute array specifying corners of pendulum to be drawn
-    # This represents the pendulum shape in local coordinates before rotation
-    static_pendulum_array = np.array(
-        [[-PENDULUMDIMS[0] / 2, 0],
-         [PENDULUMDIMS[0] / 2, 0],
-         [PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]],
-         [-PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]]]).T
 
     # Define color constants (RGB)
 
     while pendulums and ge:
-        clock.tick(fps)
+        clock.tick(REFRESHFREQ)
+
+        surface.fill((0,0,0))
+
         for event in pygame.event.get():
             if event.type == QUIT:
                 pygame.quit()
@@ -378,39 +225,70 @@ def run_pendulum(genomes, config):
                     pygame.quit()
                     sys.exit()
 
-        #fitness is based on how long we are alive and based on the angle of the pendulum 
-        for i in range(len(ge)):
-            ge[i].fitness += 5
+        # fitness is based on how long we are alive and based on the angle of the pendulum
+        
 
         for i, pendulum in enumerate(pendulums):
             if pendulum.is_dead:
                 continue
             is_dead, time, x, v, theta, omega = pendulum.get_state()
-            inputs = [x, v, time, theta, omega]
+            inputs =[(x - WINDOWDIMS[0]/2) / (WINDOWDIMS[0]/2),
+            v / 5.0,
+            theta / (np.pi / 2),
+            omega / 5.0]
+
             output = nets[i].activate(inputs)
-
-            print(output)
+            action = ["Left", "None", "Right"][np.argmax(output)]
             
+            # UPDATE the physics
+            pendulum.update_state(action)
+            
+            # Pre-compute array specifying corners of pendulum to be drawn
+            # This represents the pendulum shape in local coordinates before rotation
+            # now we have to draw our carts
+            static_pendulum_array = np.array(
+                [[PENDULUMDIMS[0] / 2, 0],
+                 [PENDULUMDIMS[0] / 2, 0],
+                 [PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]],
+                 [-PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]]]).T
+            # Draw the cart as a black rectangle
+            cart = pygame.Rect(x - CARTDIMS[0] // 2,
+                               pendulum.Y_CART, CARTDIMS[0], CARTDIMS[1])
+            pygame.draw.rect(surface, pendulum.color, cart)
 
+            # Transform pendulum coordinates: rotate by theta angle, then translate to cart position
+            pendulum_array = np.dot(rotation_matrix(theta), static_pendulum_array)
+            pendulum_array += np.array([[x], [pendulum.Y_CART]])
 
-# Entry point for the game
-# def main():
-#     """Initializes and starts the inverted pendulum game"""
-#     inv = InvertedPendulumGame(
-#         WINDOWDIMS, CARTDIMS, PENDULUMDIMS, GRAVITY, A_CART, REFRESHFREQ)
-#     inv.game()
+            # Draw the pendulum as a black polygon
+            pygame.draw.polygon(surface, pendulum.color,
+                                ((pendulum_array[0, 0], pendulum_array[1, 0]),
+                                 (pendulum_array[0, 1], pendulum_array[1, 1]),
+                                 (pendulum_array[0, 2], pendulum_array[1, 2]),
+                                 (pendulum_array[0, 3], pendulum_array[1, 3])))
+            ge[i].fitness += 1
+            ge[i].fitness -= abs(theta) * 2
+            ge[i].fitness -= abs(x - WINDOWDIMS[0]/2) / 200
+            
+        pygame.display.update()
+        for i in reversed(range(len(pendulums))):
+                if pendulums[i].is_dead:
+                    ge[i].fitness -= 20
+                    ge.pop(i)
+                    nets.pop(i)
+                    pendulums.pop(i)
+        clock.tick(REFRESHFREQ)
 
+                    
+                
 
-# # Run the game when this script is executed directly
-# if __name__ == '__main__':
-#     main()
 
 
 if __name__ == "__main__":
     # Set configuration file
-    config_path = "../config-inverted-pendulum.txt"
+    config_path = "InvertedPendulumAi\config-inverted-pendulum.txt"
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
-                                neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
+                         neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
     # Create core evolution algorithm class
     p = neat.Population(config)
@@ -421,5 +299,5 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_pendulum, 5)
+    winner = p.run(run_pendulum,  10)
     print("Best fitness:", winner.fitness)
