@@ -1,10 +1,12 @@
 # Flappy Bird Game - Main Game Loop
+from dotenv import load_dotenv
+import os
+from pygame.locals import *
 import pygame
 import random
 import neat
-import utils.visualize as visualize
-
-from pygame.locals import *
+# import utils.visualize as visualize
+load_dotenv()
 
 # Game constants
 # Screen dimensions
@@ -14,7 +16,7 @@ SCREEN_HEIGHT = 600
 # Bird movement constants
 SPEED = 20  # Flap strength
 GRAVITY = 2.0  # Falling acceleration
-GAME_SPEED =30  # Speed of pipes and ground moving
+GAME_SPEED = 30  # Speed of pipes and ground moving
 
 # Ground dimensions
 GROUND_WIDHT = 2 * SCREEN_WIDHT
@@ -25,7 +27,7 @@ PIPE_WIDHT = 70
 PIPE_HEIGHT = 500
 
 # Gap between upper and lower pipes
-PIPE_GAP =  200
+PIPE_GAP = 200
 
 # fps
 fps = 30
@@ -39,6 +41,7 @@ pygame.mixer.init()
 
 # Sprites: Bird
 
+
 class Bird(pygame.sprite.Sprite):
     """Represents the flappy bird character"""
 
@@ -48,8 +51,9 @@ class Bird(pygame.sprite.Sprite):
         # Load bird animation frames (3 different wing positions)
         bird_color = random.choice(['bluebird', 'redbird', 'yellowbird'])
         self.images = [pygame.image.load(f'game/assets/sprites/{bird_color}-upflap.png').convert_alpha(),
-                   pygame.image.load(f'game/assets/sprites/{bird_color}-midflap.png').convert_alpha(),
-                   pygame.image.load(f'game/assets/sprites/{bird_color}-downflap.png').convert_alpha()]
+                       pygame.image.load(
+                           f'game/assets/sprites/{bird_color}-midflap.png').convert_alpha(),
+                       pygame.image.load(f'game/assets/sprites/{bird_color}-downflap.png').convert_alpha()]
 
         # Initial vertical velocity
         self.speed = SPEED
@@ -66,6 +70,7 @@ class Bird(pygame.sprite.Sprite):
         self.rect[0] = SCREEN_WIDHT / 6
         self.rect[1] = SCREEN_HEIGHT / 2
         self.score = 0
+
     def update(self):
         """Update bird animation and apply gravity"""
         # Cycle through animation frames
@@ -114,11 +119,11 @@ class Pipe(pygame.sprite.Sprite):
 
         # Create collision mask
         self.mask = pygame.mask.from_surface(self.image)
-        
+
         # Track which birds have passed this pipe
         self.passed_birds = set()
 
-    def update(self):   
+    def update(self):
         """Move pipe to the left"""
         self.rect[0] -= GAME_SPEED
 
@@ -148,13 +153,12 @@ class Ground(pygame.sprite.Sprite):
         self.rect[0] -= GAME_SPEED
 
 
-
 def is_off_screen(sprite):
     """Check if a sprite has moved off the left side of the screen"""
     return sprite.rect[0] < -(sprite.rect[2])
 
 
-def get_random_pipes(xpos) -> tuple[Pipe, Pipe]: 
+def get_random_pipes(xpos) -> tuple[Pipe, Pipe]:
     """Generate a random pipe pair (top and bottom pipes with random gap)"""
     size = random.randint(150, 400)
     # Create bottom pipe
@@ -163,22 +167,23 @@ def get_random_pipes(xpos) -> tuple[Pipe, Pipe]:
     pipe_inverted = Pipe(True, xpos, SCREEN_HEIGHT - size - PIPE_GAP)
     return pipe, pipe_inverted
 
-    
- 
+
 def run_bird(genomes, config):
     nets = []
     ge = []
     birds = []
 
-    # Game initialization 
+    # Game initialization
     pygame.init()
     screen = pygame.display.set_mode((SCREEN_WIDHT, SCREEN_HEIGHT))
     pygame.display.set_caption('Flappy AI')
-    pygame.display.set_icon(pygame.image.load('game/assets/sprites/redbird-upflap.png'))
+    pygame.display.set_icon(pygame.image.load(
+        'game/assets/sprites/redbird-upflap.png'))
 
     # Load game images
     BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
-    BACKGROUND = pygame.transform.scale(BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
+    BACKGROUND = pygame.transform.scale(
+        BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
 
     # Create sprite groups for collision detection and rendering
     bird_group = pygame.sprite.Group()
@@ -201,17 +206,15 @@ def run_bird(genomes, config):
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
         nets.append(net)
-        g.fitness = 0 
-        #init bird
+        g.fitness = 0
+        # init bird
         bird = Bird()
         birds.append(bird)
         bird_group.add(bird)
-        ge.append(g)        
-        
+        ge.append(g)
+
     global generation
 
-
-        
     score = 0  # Player score (increments when passing pipes)
     font = pygame.font.Font(None, 74)  # Font for score display
     # Game state variables
@@ -226,7 +229,7 @@ def run_bird(genomes, config):
                 pygame.quit()
 
         for i in range(len(ge)):
-            ge[i].fitness += 0.001           
+            ge[i].fitness += 0.001
 
         # Check if birds have passed pipes and reward them
         for pipe in pipe_group:
@@ -234,7 +237,8 @@ def run_bird(genomes, config):
                 for i, bird in enumerate(birds):
                     # Bird has passed the pipe if bird's left edge is past pipe's right edge
                     if bird.rect.left > pipe.rect.right and bird not in pipe.passed_birds:  # Use bird object
-                        pipe.passed_birds.add(bird)  # Store bird object, not index
+                        # Store bird object, not index
+                        pipe.passed_birds.add(bird)
                         ge[i].fitness += 5
                         bird.score += 1
                         if bird.score == 20:
@@ -247,20 +251,19 @@ def run_bird(genomes, config):
                 if not pipe.inverted and pipe.rect.right > bird.rect.left:
                     next_pipe = pipe
                     break
-            
 
             inputs = [
-                    bird.rect[1] / SCREEN_HEIGHT, # 0-1 range 
-                    (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT, 
-                    (next_pipe.rect.top - PIPE_GAP / 2 - bird.rect.centery) / SCREEN_HEIGHT, 
-                    bird.speed / 20,  
+                bird.rect[1] / SCREEN_HEIGHT,  # 0-1 range
+                (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT,
+                (next_pipe.rect.top - PIPE_GAP / 2 -
+                 bird.rect.centery) / SCREEN_HEIGHT,
+                bird.speed / 20,
             ]
 
             output = nets[index].activate(inputs)
             if output[0] > 0.0:
-                    bird.bump()
+                bird.bump()
 
-    
         # update sprites
         bird_group.update()
         pipe_group.update()
@@ -274,42 +277,45 @@ def run_bird(genomes, config):
 
             pipe_group.add(pipes[0])
             pipe_group.add(pipes[1])
-           
+
             score += 1
         if is_off_screen(ground_group.sprites()[0]):
             ground_group.remove(ground_group.sprites()[0])
 
             new_ground = Ground(GROUND_WIDHT - 20)
             ground_group.add(new_ground)
-            
 
         bird_group.draw(screen)
         pipe_group.draw(screen)
         ground_group.draw(screen)
         for i in reversed(range(len(birds))):
-                    bird = birds[i]
-                    hit_ground = pygame.sprite.spritecollideany(bird, ground_group, pygame.sprite.collide_mask)
-                    hit_pipe = pygame.sprite.spritecollideany(bird, pipe_group, pygame.sprite.collide_mask)
-                    out_of_bounds = (bird.rect[1] > SCREEN_HEIGHT or bird.rect[1] < 0)
+            bird = birds[i]
+            hit_ground = pygame.sprite.spritecollideany(
+                bird, ground_group, pygame.sprite.collide_mask)
+            hit_pipe = pygame.sprite.spritecollideany(
+                bird, pipe_group, pygame.sprite.collide_mask)
+            out_of_bounds = (bird.rect[1] > SCREEN_HEIGHT or bird.rect[1] < 0)
 
-                    if(hit_ground or hit_pipe or out_of_bounds):
-                        ge[i].fitness -=4
-                        bird_group.remove(bird)
-                        birds.pop(i)
-                        nets.pop(i)
-                        ge.pop(i)
-    
+            if (hit_ground or hit_pipe or out_of_bounds):
+                ge[i].fitness -= 4
+                bird_group.remove(bird)
+                birds.pop(i)
+                nets.pop(i)
+                ge.pop(i)
+
         score_text = font.render(str(score), True, (255, 255, 255))
         screen.blit(score_text, (SCREEN_WIDHT / 2 - 20, 50))
         # Show generation info (optional)
         small_font = pygame.font.Font(None, 30)
-        birds_text = small_font.render(f'Birds: {len(birds)}', True, (255, 255, 255))
+        birds_text = small_font.render(
+            f'Birds: {len(birds)}', True, (255, 255, 255))
         screen.blit(birds_text, (10, 10))
         pygame.display.update()
 
+
 if __name__ == "__main__":
     # Set configuration file
-    config_path = "game\config-flappybird.txt"
+    config_path = os.getenv('FLAPPY_CONFIG', 'game/config-flappybird.txt')
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                 neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
@@ -334,4 +340,3 @@ if __name__ == "__main__":
     visualize.draw_net(config, winner, True, node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True)
     # visualize.plot_species(stats, view=True)
-
