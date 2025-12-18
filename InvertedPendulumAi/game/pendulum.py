@@ -3,6 +3,7 @@
 import pygame
 import sys
 import numpy as np
+import random
 from pygame.locals import *
 import neat
 import os
@@ -12,12 +13,13 @@ import utils.visualize as visualize
 WINDOWDIMS = (1200, 600)  # Window width and height in pixels
 CARTDIMS = (50, 10)  # Cart width and height in pixels
 PENDULUMDIMS = (6, 200)  # Pendulum width and length in pixels
-GRAVITY = 0.13  # Gravity acceleration factor for the pendulum
+GRAVITY = 0.10  # Gravity acceleration factor for the pendulum
 REFRESHFREQ = 100  # Game refresh frequency (frames per second)
 A_CART = 0.15  # Cart acceleration magnitude when moving left or right
+FAST_MODE = False  # Set to False to visualize; True runs headless for faster simulations
 # InvertedPendulum class: Handles the physics simulation of the inverted pendulum system
 class InvertedPendulum(object):
-    def __init__(self, windowdims, cartdims, penddims, gravity, a_cart):
+    def __init__(self, windowdims, cartdims, penddims, gravity, a_cart, color=None):
         # Store window dimensions
         self.WINDOWWIDTH = windowdims[0]
         self.WINDOWHEIGHT = windowdims[1]
@@ -35,8 +37,11 @@ class InvertedPendulum(object):
 
         # Calculate the y-coordinate of the cart (3/4 down the window)
         self.Y_CART = 3 * self.WINDOWHEIGHT / 4
-        self.color = (np.random.randint(0, 256), np.random.randint(
-            0, 256), np.random.randint(0, 256))
+        # Pick a stable color for this pendulum; if provided, keep it, otherwise generate once
+        if color is None:
+            self.color = (np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256))
+        else:
+            self.color = color
 
         # Initialize the pendulum state
         self.reset_state()
@@ -49,8 +54,8 @@ class InvertedPendulum(object):
         self.x_cart = np.random.uniform(0.4, 0.6) * self.WINDOWWIDTH
         self.v_cart = np.random.uniform(-1, 1)        # Angle of pendulum (theta = 0 upright, omega positive into the screen)
         # Small random perturbation to make the game more challenging
-        # self.theta =np.random.uniform(-np.pi/4, np.pi/4) 
-        self.theta =np.random.uniform(-0.01, 0.01) 
+        self.theta =np.random.uniform(-np.pi/4, np.pi/4) 
+        # self.theta =np.random.uniform(-0.01, 0.01) 
 
         self.omega = 0  # Initial angular velocity of pendulum
 
@@ -130,7 +135,7 @@ class InvertedPendulum(object):
         elif action == "Right":
             self.v_cart += self.A_CART
         elif action == "None":
-            self.v_cart *= 0.08
+            self.v_cart *= 0.98
         else:
             raise RuntimeError("action must be 'Left', 'Right', or 'None'")
 
@@ -151,22 +156,11 @@ class InvertedPendulum(object):
             position: Positioning mode - "center" or "topleft" (default: "center")
             fontsize: Font size in pixels (default: 48)
         """
-        font = pygame.font.SysFont(None, fontsize)
-        text_render = font.render(text, True, self.BLACK, self.WHITE)
-        text_rect = text_render.get_rect()
-
-        # Position text based on the specified alignment
-        if position == "center":
-            text_rect.center = point
-        elif position == "topleft":
-            text_rect.topleft = point
-
-        # Draw text to the game surface
-        self.surface.blit(text_render, text_rect)
+      
 
     def time_seconds(self):
         """Converts elapsed game frames to seconds"""
-        return self.time / float(self.REFRESHFREQ)
+        return self.time / float(REFRESHFREQ)
 
 
 def rotation_matrix(theta):
@@ -189,8 +183,13 @@ def run_pendulum(genomes, config):
     pendulums = []
     for _, g in genomes:
         net = neat.nn.FeedForwardNetwork.create(g, config)
+        # Ensure each genome keeps the same color during its lifetime
+        if not hasattr(g, "color"):
+            rng = random.Random(g.key)
+            g.color = (rng.randint(40, 255), rng.randint(40, 255), rng.randint(40, 255))
+
         pendulum = InvertedPendulum(
-            WINDOWDIMS, CARTDIMS, PENDULUMDIMS, GRAVITY, A_CART)
+            WINDOWDIMS, CARTDIMS, PENDULUMDIMS, GRAVITY, A_CART, color=g.color)
         g.fitness = 0
         nets.append(net)
         pendulums.append(pendulum)
@@ -200,44 +199,42 @@ def run_pendulum(genomes, config):
     high_score = 0  # Track the best score achieved
 
     score = 0
-   
     # Initialize pygame and create game window
-    pygame.init()
-    clock = pygame.time.Clock()
-
-    # Store refresh frequency (frames per second for state updates)
-
-    # Create pygame display surface
-    surface = pygame.display.set_mode(WINDOWDIMS, 0, 32)
-    pygame.display.set_caption('Inverted Pendulum Game')
-
-
-    # Define color constants (RGB)
+    surface = None
+    clock = None
+    if not FAST_MODE:
+        pygame.init()
+        clock = pygame.time.Clock()
+        surface = pygame.display.set_mode(WINDOWDIMS, 0, 32)
+        pygame.display.set_caption('Inverted Pendulum Game')
 
     while pendulums and ge:
-        clock.tick(REFRESHFREQ)
+        if not FAST_MODE and clock:
+            clock.tick(REFRESHFREQ)
 
-        surface.fill((0,0,0))
+        if not FAST_MODE and surface:
+            surface.fill((0,0,0))
 
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                pygame.quit()
-            if event.type == KEYDOWN:
-                if event.key == K_ESCAPE:
+        if not FAST_MODE:
+            for event in pygame.event.get():
+                if event.type == QUIT:
                     pygame.quit()
-                    sys.exit()
+                if event.type == KEYDOWN:
+                    if event.key == K_ESCAPE:
+                        pygame.quit()
+                        sys.exit()
 
         # fitness is based on how long we are alive and based on the angle of the pendulum
         
 
         for i, pendulum in enumerate(pendulums):
-            if pendulum.is_dead:
-                continue
             is_dead, time, x, v, theta, omega = pendulum.get_state()
-            inputs =[(x - WINDOWDIMS[0]/2) / (WINDOWDIMS[0]/2),
+            inputs =[
+            (x - WINDOWDIMS[0]/2) / (WINDOWDIMS[0]/2),
             v / 5.0,
-            theta / (np.pi / 2),
-            omega / 5.0]
+            np.sin(theta),
+            omega / 5.0
+            ]
 
             output = nets[i].activate(inputs)
             action = ["Left", "None", "Right"][np.argmax(output)]
@@ -245,42 +242,55 @@ def run_pendulum(genomes, config):
             dist_from_center = abs(pendulum.x_cart - WINDOWDIMS[0]/2) / (WINDOWDIMS[0]/2)
 
             # Substantially penalize distance so staying at the edge is never profitable
-            ge[i].fitness += 0.001
+            ge[i].fitness += 0.1
+            ge[i].fitness -= abs(dist_from_center) * 0.001
+            # Give fitness based on how upright the pendulum is (small angle = good)
+            angle_fitness = 1.0 - (abs(pendulum.theta) / (np.pi / 2))
+            ge[i].fitness += angle_fitness * 0.1
 
-
-            static_pendulum_array = np.array(
-                [[PENDULUMDIMS[0] / 2, 0],
-                 [PENDULUMDIMS[0] / 2, 0],
-                 [PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]],
-                 [-PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]]]).T
-            # Draw the cart as a black rectangle
-            cart = pygame.Rect(pendulum.x_cart - CARTDIMS[0] // 2, pendulum.Y_CART, CARTDIMS[0], CARTDIMS[1])
-            pygame.draw.rect(surface, pendulum.color, cart)
-
-            # Transform pendulum coordinates: rotate by theta angle, then translate to cart position
-            pendulum_array = np.dot(rotation_matrix(pendulum.theta), static_pendulum_array)
-            pendulum_array += np.array([[pendulum.x_cart], [pendulum.Y_CART]])
-
-            # Draw the pendulum as a black polygon
-            pygame.draw.polygon(surface, pendulum.color,
-                                ((pendulum_array[0, 0], pendulum_array[1, 0]),
-                                 (pendulum_array[0, 1], pendulum_array[1, 1]),
-                                 (pendulum_array[0, 2], pendulum_array[1, 2]),
-                                 (pendulum_array[0, 3], pendulum_array[1, 3])))
-
+            if pendulum.theta > np.pi / 4:
+                ge[i].fitness -= 0.5
+            if not FAST_MODE and surface:
+                static_pendulum_array = np.array(
+                    [[PENDULUMDIMS[0] / 2, 0],
+                     [PENDULUMDIMS[0] / 2, 0],
+                     [PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]],
+                     [-PENDULUMDIMS[0] / 2, -PENDULUMDIMS[1]]]).T
+                cart = pygame.Rect(pendulum.x_cart - CARTDIMS[0] // 2, pendulum.Y_CART, CARTDIMS[0], CARTDIMS[1])
+                pygame.draw.rect(surface, pendulum.color, cart)
+                pendulum_array = np.dot(rotation_matrix(pendulum.theta), static_pendulum_array)
+                pendulum_array += np.array([[pendulum.x_cart], [pendulum.Y_CART]])
+                pygame.draw.polygon(surface, pendulum.color,
+                                    ((pendulum_array[0, 0], pendulum_array[1, 0]),
+                                     (pendulum_array[0, 1], pendulum_array[1, 1]),
+                                     (pendulum_array[0, 2], pendulum_array[1, 2]),
+                                     (pendulum_array[0, 3], pendulum_array[1, 3])))
+        if not FAST_MODE and surface:
+            font = pygame.font.Font(None, 36)
+            time_text = font.render(f"Time: {pendulum.time_seconds():.1f}s", True, (255, 255, 255))
+            surface.blit(time_text, (10, 10))
+                    
+            # Display top 3 genomes with their colors and genome IDs
+            top_3_indices = sorted(range(len(ge)), key=lambda i: ge[i].fitness, reverse=True)[:3]
+            y_offset = 50
+            for rank, idx in enumerate(top_3_indices, start=1):
+                genome_text = font.render(f"#{rank}:{ge[idx].key}", True, ge[idx].color)
+                surface.blit(genome_text, (10, 10 + y_offset * rank))
+            top_3_indices = sorted(range(len(ge)), key=lambda i: ge[i].fitness, reverse=True)[:3]
+            y_offset = 50
             
+        if not FAST_MODE and surface:
+            pygame.display.update()
+
         for i in reversed(range(len(pendulums))):
-                if pendulums[i].is_dead:
-                    ge[i].fitness -= 5
-                    ge.pop(i)
-                    nets.pop(i)
-                    pendulums.pop(i)
-        pygame.display.update()
-        clock.tick(REFRESHFREQ)
-       
+            if pendulums[i].is_dead:
+                ge[i].fitness -= 5
+                ge.pop(i)
+                nets.pop(i)
+                pendulums.pop(i)
+                
 
                     
-                
 
 
 
@@ -299,15 +309,23 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_pendulum,  10)
+    winner = p.run(run_pendulum,  12)
     print("Best fitness:", winner.fitness)
-    
-    # Save visualizations to output folder
-    output_dir = os.path.join(os.path.dirname(__file__), '..', 'output')
-    os.makedirs(output_dir, exist_ok=True)
-    
-    visualize.draw_net(config, winner, True, filename=os.path.join(output_dir, 'winner_network.svg'))
-    visualize.plot_stats(stats, ylog=False, view=False, filename=os.path.join(output_dir, 'stats.png'))
-    # Visualize the winner network
-    visualize.draw_net(config, winner, True)
+
+    # Build readable labels for the network visualization
+    input_labels = [
+        "x_offset",
+        "v_cart",
+        "sin_theta",
+        "omega"
+    ]
+    output_labels = ["Left", "None", "Right"]
+    node_names = {}
+    for k, label in zip(config.genome_config.input_keys, input_labels):
+        node_names[k] = label
+    for k, label in zip(config.genome_config.output_keys, output_labels):
+        node_names[k] = label
+
+    # Visualize the winner network with labeled nodes
+    visualize.draw_net(config, winner, True, node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True)
