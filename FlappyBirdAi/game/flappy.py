@@ -1,12 +1,10 @@
 # Flappy Bird Game - Main Game Loop
-from dotenv import load_dotenv
 import os
 from pygame.locals import *
 import pygame
 import random
 import neat
 # import utils.visualize as visualize
-load_dotenv()
 
 # Game constants
 # Screen dimensions
@@ -33,8 +31,8 @@ PIPE_GAP = 200
 fps = 30
 
 # Audio file paths
-wing = 'game/assets/audio/wing.wav'  # Sound when bird flaps
-hit = 'game/assets/audio/hit.wav'    # Sound when bird hits obstacle
+wing = 'FlappyBirdAi/game/assets/audio/wing.wav'  # Sound when bird flaps
+hit = 'FlappyBirdAi/game/assets/audio/hit.wav'    # Sound when bird hits obstacle
 
 # Initialize pygame mixer for sound effects
 pygame.mixer.init()
@@ -50,10 +48,10 @@ class Bird(pygame.sprite.Sprite):
 
         # Load bird animation frames (3 different wing positions)
         bird_color = random.choice(['bluebird', 'redbird', 'yellowbird'])
-        self.images = [pygame.image.load(f'game/assets/sprites/{bird_color}-upflap.png').convert_alpha(),
+        self.images = [pygame.image.load(f'FlappyBirdAi/game/assets/sprites/{bird_color}-upflap.png').convert_alpha(),
                        pygame.image.load(
-                           f'game/assets/sprites/{bird_color}-midflap.png').convert_alpha(),
-                       pygame.image.load(f'game/assets/sprites/{bird_color}-downflap.png').convert_alpha()]
+                           f'FlappyBirdAi/game/assets/sprites/{bird_color}-midflap.png').convert_alpha(),
+                       pygame.image.load(f'FlappyBirdAi/game/assets/sprites/{bird_color}-downflap.png').convert_alpha()]
 
         # Initial vertical velocity
         self.speed = SPEED
@@ -61,7 +59,7 @@ class Bird(pygame.sprite.Sprite):
         # Animation frame counter
         self.current_image = 0
         self.image = pygame.image.load(
-            'game/assets/sprites/bluebird-upflap.png').convert_alpha()
+            'FlappyBirdAi/game/assets/sprites/bluebird-upflap.png').convert_alpha()
         # Create collision mask from image
         self.mask = pygame.mask.from_surface(self.image)
 
@@ -100,7 +98,7 @@ class Pipe(pygame.sprite.Sprite):
 
         # Load pipe sprite
         self.image = pygame.image.load(
-            'game/assets/sprites/pipe-green.png').convert_alpha()
+            'FlappyBirdAi/game/assets/sprites/pipe-green.png').convert_alpha()
         self.image = pygame.transform.scale(
             self.image, (PIPE_WIDHT, PIPE_HEIGHT))
 
@@ -136,7 +134,7 @@ class Ground(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         # Load ground sprite
         self.image = pygame.image.load(
-            'game/assets/sprites/base.png').convert_alpha()
+            'FlappyBirdAi/game/assets/sprites/base.png').convert_alpha()
         self.image = pygame.transform.scale(
             self.image, (GROUND_WIDHT, GROUND_HEIGHT))
 
@@ -178,10 +176,10 @@ def run_bird(genomes, config):
     screen = pygame.display.set_mode((SCREEN_WIDHT, SCREEN_HEIGHT))
     pygame.display.set_caption('Flappy AI')
     pygame.display.set_icon(pygame.image.load(
-        'game/assets/sprites/redbird-upflap.png'))
+        'FlappyBirdAi/game/assets/sprites/redbird-upflap.png'))
 
     # Load game images
-    BACKGROUND = pygame.image.load('game/assets/sprites/background-day.png')
+    BACKGROUND = pygame.image.load('FlappyBirdAi/game/assets/sprites/background-day.png')
     BACKGROUND = pygame.transform.scale(
         BACKGROUND, (SCREEN_WIDHT, SCREEN_HEIGHT))
 
@@ -315,7 +313,7 @@ def run_bird(genomes, config):
 
 if __name__ == "__main__":
     # Set configuration file
-    config_path = os.getenv('FLAPPY_CONFIG', 'game/config-flappybird.txt')
+    config_path = os.getenv('FLAPPY_CONFIG', 'FlappyBirdAi\config-flappybird.txt')
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                 neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
@@ -337,6 +335,7 @@ if __name__ == "__main__":
         -3: "Dist to Gap",
 
     }
+    
     visualize.draw_net(config, winner, True, node_names=node_names)
     visualize.plot_stats(stats, ylog=False, view=True)
     # visualize.plot_species(stats, view=True)
