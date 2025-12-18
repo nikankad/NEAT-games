@@ -1,50 +1,69 @@
-# NEAT Games: Flappy Bird and Inverted Pendulum
+# NEAT Games AI
 
-Two small demos that evolve agents with NEAT:
-- A Flappy Bird clone where a neural net learns to flap through pipes.
-- An inverted pendulum simulation where a cart keeps the pole balanced.
+This project demonstrates the application of the **NEAT (NeuroEvolution of Augmenting Topologies)** algorithm to train AI agents to play simple games and simulations.
 
-## Repo Layout
-- [FlappyBirdAi](FlappyBirdAi): Pygame Flappy Bird, NEAT setup, sprites, audio.
-- [InvertedPendulumAi](InvertedPendulumAi): Pygame inverted pendulum, NEAT setup.
-- [utils/visualize.py](utils/visualize.py): Helpers to plot fitness curves and render networks.
-- [requirements.txt](requirements.txt): Python dependencies (pygame, neat-python, matplotlib, graphviz bindings, etc.).
+## Projects Included
 
-## Prerequisites
-- Python 3.10+ recommended.
-- System Graphviz binaries for network rendering (install from https://graphviz.org/download/).
-- On Windows, `SDL_VIDEODRIVER` issues are rare, but ensure a desktop session is available when running pygame.
+### 1. Flappy Bird AI
+An AI agent learns to play a clone of the popular game Flappy Bird. The neural network controls the bird's flapping mechanism to navigate through pipes.
 
-## Setup
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-```
+- **Location**: `FlappyBirdAi/`
+- **Inputs**: Bird's Y position, distance to the next pipe, distance to the gap.
+- **Outputs**: Jump (Flap).
 
-## Run the Flappy Bird experiment
+### 2. Inverted Pendulum AI
+An AI agent learns to balance an inverted pendulum on a moving cart. This is a classic control theory problem solved here using evolutionary neural networks.
+
+- **Location**: `InvertedPendulumAi/`
+- **Inputs**: Cart position, cart velocity, pendulum angle, pendulum angular velocity.
+- **Outputs**: Move Left/Right.
+
+## Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/nikankad/NEAT-games.git
+   cd NEAT-games
+   ```
+
+2. **Install dependencies**:
+   It is recommended to use a virtual environment.
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+   **Note on Graphviz**: To generate network visualizations, you need to have Graphviz installed on your system (not just the Python package).
+   - **Windows**: Download and install from [Graphviz Download](https://graphviz.org/download/). Make sure to add Graphviz to your system PATH during installation.
+   - **Linux**: `sudo apt-get install graphviz`
+   - **Mac**: `brew install graphviz`
+
+## Usage
+
+Run the games from the root directory of the project to ensure file paths for configurations and assets are resolved correctly.
+
+### Running Flappy Bird AI
+
 ```bash
 python FlappyBirdAi/game/flappy.py
 ```
-- Uses the NEAT config at [FlappyBirdAi/config-flappybird.txt](FlappyBirdAi/config-flappybird.txt) by default. Override with env var `FLAPPY_CONFIG` if you want to point to another config file.
-- Assets and sounds live in [FlappyBirdAi/game/assets](FlappyBirdAi/game/assets).
-- The script loads env vars from a local `.env` (optional) via `python-dotenv`.
-- Training runs for 200 generations in the main block and visualizes the best network when finished.
 
-## Run the Inverted Pendulum experiment
+### Running Inverted Pendulum AI
+
 ```bash
 python InvertedPendulumAi/game/pendulum.py
 ```
-- Uses the NEAT config at [InvertedPendulumAi/config-inverted-pendulum.txt](InvertedPendulumAi/config-inverted-pendulum.txt).
-- Fitness is primarily survival time; networks pick a cart action (`Left`, `None`, `Right`) each frame.
-- Outputs (winner network graph and fitness plots) are written under `InvertedPendulumAi/output` if the directory exists; a fallback call also renders to the default Graphviz location.
 
-## Visualizing results
-- Fitness and species curves: `plot_stats` and `plot_species` in [utils/visualize.py](utils/visualize.py).
-- Network graphs: `draw_net` in [utils/visualize.py](utils/visualize.py) (requires Graphviz installed and on PATH).
+## Configuration
 
-## Tips
-- If pygame cannot open a window, ensure you are not running headless or over SSH without a display.
-- For quicker tests, lower generation counts in the `p.run(...)` calls inside each game script.
+Each game has its own NEAT configuration file where you can tweak parameters such as population size, mutation rates, and fitness thresholds.
 
+- **Flappy Bird**: `FlappyBirdAi/config-flappybird.txt`
+- **Inverted Pendulum**: `InvertedPendulumAi/config-inverted-pendulum.txt`
 
+## Visualization
+
+The project includes a `utils/visualize.py` module that generates plots for:
+- **Network Structure**: Visual representation of the neural network (nodes and connections).
+- **Statistics**: Graphs showing average and best fitness over generations.
+
+These visualizations are typically generated after the training loop completes or when a solution is found.
