@@ -2,7 +2,7 @@
 import pygame
 import random
 import neat
-import visualize
+import utils.visualize as visualize
 
 from pygame.locals import *
 

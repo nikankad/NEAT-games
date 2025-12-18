@@ -147,6 +147,9 @@ class InvertedPendulumGame(object):
         self.time = 0  # Time gives time in frames
         self.high_score = 0  # Track the best score achieved
         
+        self.score = 0 
+        self.color = (np.random.randint(0, 256), np.random.randint(0, 256), np.random.randint(0, 256))
+
         # Initialize pygame and create game window
         pygame.init()
         self.clock = pygame.time.Clock()
@@ -180,14 +183,14 @@ class InvertedPendulumGame(object):
         """
         # Draw the cart as a black rectangle
         cart = pygame.Rect(x - self.CARTWIDTH // 2, self.Y_CART, self.CARTWIDTH, self.CARTHEIGHT)
-        pygame.draw.rect(self.surface, self.BLACK, cart)
+        pygame.draw.rect(self.surface, self.color, cart)
         
         # Transform pendulum coordinates: rotate by theta angle, then translate to cart position
         pendulum_array = np.dot(self.rotation_matrix(theta), self.static_pendulum_array)
         pendulum_array += np.array([[x], [self.Y_CART]])
         
         # Draw the pendulum as a black polygon
-        pendulum = pygame.draw.polygon(self.surface, self.BLACK,
+        pendulum = pygame.draw.polygon(self.surface, self.color,
             ((pendulum_array[0, 0], pendulum_array[1, 0]),
              (pendulum_array[0, 1], pendulum_array[1, 1]),
              (pendulum_array[0, 2], pendulum_array[1, 2]),
@@ -321,26 +324,8 @@ class InvertedPendulumGame(object):
         Displays the end-of-round screen showing the score and high score.
         Waits for player input to continue or exit.
         """
-        self.surface.fill(self.WHITE)
-        
-        # Draw the final state of cart and pendulum
-        self.draw_cart(self.pendulum.x_cart, self.pendulum.theta)
-        
-        # Display current round score
-        self.render_text("Score: {}".format(self.time_seconds()),
-                         (0.5 * self.WINDOWWIDTH, 0.3 * self.WINDOWHEIGHT))
-        
-        # Display best score achieved so far
-        self.render_text("High Score : {}".format(self.high_score),
-                         (0.5 * self.WINDOWWIDTH, 0.4 * self.WINDOWHEIGHT))
-        
-        # Display player instructions
-        self.render_text("(Enter to play again, ESC to exit)",
-                         (0.5 * self.WINDOWWIDTH, 0.85 * self.WINDOWHEIGHT),
-                         fontsize = 30)
-        
+       
         # Update display
-        pygame.display.update()
 
     def game(self):
         """
@@ -360,7 +345,9 @@ class InvertedPendulumGame(object):
                 
                 # Run a single game round and display results
                 self.game_round()
-                self.end_of_round()
+
+                pygame.display.update()
+
 
 
 # Entry point for the game
