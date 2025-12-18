@@ -302,6 +302,13 @@ if __name__ == "__main__":
     # Run NEAT
     winner = p.run(run_pendulum,  10)
     print("Best fitness:", winner.fitness)
+    
+    # Save visualizations to output folder
+    output_dir = os.path.join(os.path.dirname(__file__), '..', 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    
+    visualize.draw_net(config, winner, True, filename=os.path.join(output_dir, 'winner_network.svg'))
+    visualize.plot_stats(stats, ylog=False, view=False, filename=os.path.join(output_dir, 'stats.png'))
     # Visualize the winner network
     visualize.draw_net(config, winner, True)
     visualize.plot_stats(stats, ylog=False, view=True)
