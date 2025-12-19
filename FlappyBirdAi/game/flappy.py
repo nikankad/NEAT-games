@@ -337,5 +337,5 @@ if __name__ == "__main__":
     }
     
     visualize.draw_net(config, winner, True, node_names=node_names)
-    visualize.plot_stats(stats, ylog=False, view=True)
+    visualize.plot_stats(stats, ylog=False, view=True, )
     # visualize.plot_species(stats, view=True)
