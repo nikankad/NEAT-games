@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="docs/images/flappyimage.png" width="25%"  alt="Flappy Bird AI" />
-    <img src="docs/images/invertedpenimage.png" width="70%"   alt="Flappy Bird AI" />
+    <img src="docs/images/inversepend.gif" width="70%" alt="Inverted Pendulum AI" />
 
   <!-- Add more images here, e.g.: <img src="docs/images/pendulum_preview.png" width="45%" /> -->
 </p>
