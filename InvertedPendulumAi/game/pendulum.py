@@ -274,7 +274,7 @@ def run_pendulum(genomes, config):
             top_3_indices = sorted(range(len(ge)), key=lambda i: ge[i].fitness, reverse=True)[:3]
             y_offset = 50
             for rank, idx in enumerate(top_3_indices, start=1):
-                genome_text = font.render(f"#{rank}:{ge[idx].key}", True, ge[idx].color)
+                genome_text = font.render(f"{rank}){ge[idx].key}", True, ge[idx].color)
                 surface.blit(genome_text, (10, 10 + y_offset * rank))
             top_3_indices = sorted(range(len(ge)), key=lambda i: ge[i].fitness, reverse=True)[:3]
             y_offset = 50
@@ -288,7 +288,6 @@ def run_pendulum(genomes, config):
                 ge.pop(i)
                 nets.pop(i)
                 pendulums.pop(i)
-                
 
                     
 
@@ -300,6 +299,7 @@ if __name__ == "__main__":
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
+    # os.makedirs(OUTPUT_DIR, exist_ok=True)
     # Create core evolution algorithm class
     p = neat.Population(config)
 
@@ -309,7 +309,7 @@ if __name__ == "__main__":
     p.add_reporter(stats)
 
     # Run NEAT
-    winner = p.run(run_pendulum,  12)
+    winner = p.run(run_pendulum,  100)
     print("Best fitness:", winner.fitness)
 
     # Build readable labels for the network visualization
@@ -327,5 +327,16 @@ if __name__ == "__main__":
         node_names[k] = label
 
     # Visualize the winner network with labeled nodes
-    visualize.draw_net(config, winner, True, node_names=node_names)
-    visualize.plot_stats(stats, ylog=False, view=True)
+    visualize.draw_net(
+        config,
+        winner,
+        True,
+        filename="InvertedPendulumAi/outputs/winner_net.gv",
+        node_names=node_names,
+    )
+    visualize.plot_stats(
+        stats,
+        ylog=False,
+        view=True,
+        filename="InvertedPendulumAi/outputs/fitness.svg"
+    )

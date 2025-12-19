@@ -1,0 +1,17 @@
+digraph {
+	node [fontsize=9 height=0.2 shape=circle width=0.2]
+	x_offset [fillcolor=lightgray shape=box style=filled]
+	v_cart [fillcolor=lightgray shape=box style=filled]
+	sin_theta [fillcolor=lightgray shape=box style=filled]
+	omega [fillcolor=lightgray shape=box style=filled]
+	Left [fillcolor=lightblue style=filled]
+	None [fillcolor=lightblue style=filled]
+	Right [fillcolor=lightblue style=filled]
+	omega -> Left [color=green penwidth=0.19076310568650445 style=solid]
+	v_cart -> Left [color=green penwidth=0.2171394462497821 style=solid]
+	sin_theta -> Left [color=green penwidth=0.7519757375450941 style=solid]
+	sin_theta -> Right [color=red penwidth=0.5199624285605373 style=solid]
+	omega -> None [color=green penwidth=0.23926154729762222 style=solid]
+	x_offset -> Right [color=green penwidth=0.43648677585060547 style=solid]
+	omega -> Right [color=green penwidth=0.2646661011646111 style=solid]
+}
