@@ -295,7 +295,7 @@ def run_pendulum(genomes, config):
 
 if __name__ == "__main__":
     # Set configuration file
-    config_path = "InvertedPendulumAi\config-inverted-pendulum.txt"
+    config_path = "InvertedPendulumAi/config-inverted-pendulum.txt"
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 

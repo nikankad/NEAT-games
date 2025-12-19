@@ -313,7 +313,7 @@ def run_bird(genomes, config):
 
 if __name__ == "__main__":
     # Set configuration file
-    config_path = 'FlappyBirdAi\config-flappybird.txt'
+    config_path = 'FlappyBirdAi/config-flappybird.txt'
     config = neat.config.Config(neat.DefaultGenome, neat.DefaultReproduction,
                                 neat.DefaultSpeciesSet, neat.DefaultStagnation, config_path)
 
