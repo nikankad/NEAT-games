@@ -1,8 +1,8 @@
 # NEAT Games AI
 
 <p align="center">
-  <img src="docs/images/flappyimage.png" width="20%" alt="Flappy Bird AI" />
-    <img src="docs/images/invertedpenimage.png" width="45%" alt="Flappy Bird AI" />
+  <img src="docs/images/flappyimage.png" width="25%"  alt="Flappy Bird AI" />
+    <img src="docs/images/invertedpenimage.png" width="70%"   alt="Flappy Bird AI" />
 
   <!-- Add more images here, e.g.: <img src="docs/images/pendulum_preview.png" width="45%" /> -->
 </p>
