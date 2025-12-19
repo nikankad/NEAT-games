@@ -2,10 +2,8 @@
 
 <p align="center">
   <img src="docs/images/flappyimage.png" width="25%"  alt="Flappy Bird AI" />
-    <video width="65%" height="5%" controls>
-        <source src="docs/images/invertedpenimage.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
+    <img src="docs/images/invertedpenimage.gif" width="70%"   alt="Flappy Bird AI" />
+
   <!-- Add more images here, e.g.: <img src="docs/images/pendulum_preview.png" width="45%" /> -->
 </p>
 
