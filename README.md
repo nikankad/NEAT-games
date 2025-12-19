@@ -1,7 +1,7 @@
-# NEAT Games AI
+# Games with NEAT 
 
 <p align="center">
-  <img src="docs/images/flappyimage.png" width="25%"  alt="Flappy Bird AI" />
+  <img src="docs/images/flappyimage.png" width="26%"  alt="Flappy Bird AI" />
     <img src="docs/images/invertedpenimage.gif" width="70%"   alt="Flappy Bird AI" />
 
   <!-- Add more images here, e.g.: <img src="docs/images/pendulum_preview.png" width="45%" /> -->
@@ -9,7 +9,7 @@
 
 This project demonstrates the application of the **NEAT (NeuroEvolution of Augmenting Topologies)** algorithm to train AI agents to play simple games and simulations.
 
-For more information on the algorithm, refer to the original paper: [Evolving Neural Networks through Augmenting Topologies](http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf) by Kenneth O. Stanley and Risto Miikkulainen.
+For more information on the algorithm, refer to the original paper: [Evolving Neural Networks through Augmenting Topologies](http://nn.cs.utexas.edu/downloads/papers/stanley.ec02.pdf)
 
 ## Projects Included
 
