@@ -18,7 +18,7 @@ sys.path.insert(0, _ROOT)
 import utils.visualize as visualize
 
 # ── Tune this to add more players ───────────────────────────────────────────────
-NUM_PLAYERS = 4 # how many light cycles compete per game (2–6)
+NUM_PLAYERS = 2 # how many light cycles compete per game (2–6)
 
 # ── Grid / display constants (scale with player count) ──────────────────────────
 # More players → bigger grid so the arena doesn't feel cramped.
@@ -53,17 +53,33 @@ def _hsv_to_rgb(h, s, v):
     r, g, b = colorsys.hsv_to_rgb(h, s, v)
     return (int(r * 255), int(g * 255), int(b * 255))
 
+# Slot → personality colours (index = player slot = personality)
+# 0=Survivor(blue)  1=Killer(red)  2=Trapper(purple)  3=Rusher(yellow)
+# Extra slots beyond 3 fall back to HSV-generated colours.
+_PERSONALITY_COLORS = [
+    (60,  120, 220),   # 0 Survivor  — blue
+    (220,  50,  50),   # 1 Killer    — red
+    (160,  60, 220),   # 2 Trapper   — purple
+    (220, 200,  40),   # 3 Rusher    — yellow
+]
+_PERSONALITY_LABELS = ['Survivor', 'Killer', 'Trapper', 'Rusher']
+
 def _make_palettes(n):
     colors, dead_colors, heads, labels = [], [], [], []
     for i in range(n):
-        h = i / n
-        colors.append(_hsv_to_rgb(h, 0.75, 0.85))       # flat trail
-        dead_colors.append(_hsv_to_rgb(h, 0.30, 0.45))  # greyed-out dead trail
-        heads.append((255, 255, 255))                    # white head, distinct from trail
-        labels.append(f'P{i+1}')
+        if PERSONALITIES and i < len(_PERSONALITY_COLORS):
+            c = _PERSONALITY_COLORS[i]
+            colors.append(c)
+            dead_colors.append(tuple(v // 3 for v in c))
+            labels.append(_PERSONALITY_LABELS[i])
+        else:
+            h = i / n
+            c = _hsv_to_rgb(h, 0.75, 0.85)
+            colors.append(c)
+            dead_colors.append(_hsv_to_rgb(h, 0.30, 0.45))
+            labels.append(f'P{i+1}')
+        heads.append((255, 255, 255))   # white head for all players
     return colors, dead_colors, heads, labels
-
-PLAYER_COLORS, PLAYER_DEAD_COLORS, PLAYER_HEADS, PLAYER_LABELS = _make_palettes(max(NUM_PLAYERS, 6))
 
 # ── Directions: 0=RIGHT  1=DOWN  2=LEFT  3=UP ───────────────────────────────────
 DV = [(1, 0), (0, 1), (-1, 0), (0, -1)]
@@ -73,11 +89,33 @@ generation   = 0
 best_genome  = None
 hall_of_fame = []   # rolling list of past champion genomes
 HOF_SIZE     = 5    # how many past champions to keep
-SIMULATE     = '--simulate' in sys.argv   # headless fast mode
+_neat_pop    = None  # set to the Population object in __main__ for species counting
+SIMULATE      = '--simulate'     in sys.argv   # headless fast mode
+PERSONALITIES = '--personality' in sys.argv   # per-slot personality fitness + colours
+
+import datetime, csv as _csv
+RUN_ID   = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+_LOG_DIR  = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'outputs', 'logs')
+_LOG_FILE = os.path.join(_LOG_DIR, f'training_{RUN_ID}.csv')
+_CSV_FIELDS = ['run_id','gen','best_fit','avg_fit','min_fit',
+               'avg_kills','best_kills_vs_bots','hof_win_rate',
+               'hof_size','n_species','personalities','num_players']
+
+def _init_log():
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    with open(_LOG_FILE, 'w', newline='') as f:
+        _csv.DictWriter(f, fieldnames=_CSV_FIELDS).writeheader()
+
+def _log_gen(row: dict):
+    with open(_LOG_FILE, 'a', newline='') as f:
+        _csv.DictWriter(f, fieldnames=_CSV_FIELDS).writerow(row)
+
+PLAYER_COLORS, PLAYER_DEAD_COLORS, PLAYER_HEADS, PLAYER_LABELS = _make_palettes(max(NUM_PLAYERS, 6))
 _scr = _clk = _fnt = None
-_speed_level = 0   # 0=1x, 1=4x, 2=16x, 3=MAX
-_SPEEDS      = [15, 60, None, None]   # tick fps per level (None = unlimited)
-_DRAW_EVERY  = [1,  1,  4,    999999] # draw every Nth frame per level
+_speed_level = 0   # 0=1x, 1=4x, 2=16x, 3=MAX, 4=TURBO
+_SPEEDS      = [15, 60, None, None, None]   # tick fps per level (None = unlimited)
+_DRAW_EVERY  = [1,  1,  4,   64,   999999] # draw every Nth frame per level
+_EVENT_EVERY = [1,  1,  1,   64,   999999] # poll events every Nth frame per level
 
 # Leaderboard history — list of per-gen dicts for the terminal display
 _leaderboard: list[dict] = []
@@ -295,7 +333,7 @@ def _draw(grid, dead_grid, players, step, nets=None):
         status = 'ALIVE' if p['alive'] else 'DEAD'
         surf   = _fnt.render(f'{label}: {status}', True, PLAYER_COLORS[p['color_idx']])
         _scr.blit(surf, (10 + i * col_w, iy + 28))
-    speed_label = ['1x', '4x', '16x', 'MAX'][_speed_level]
+    speed_label = ['1x', '4x', '16x', 'MAX', 'TURBO'][_speed_level]
     _scr.blit(_fnt.render(f'SPACE: speed [{speed_label}]  ESC: quit', True, (70, 70, 100)), (10, iy + 54))
 
     # Network panel — all playing genomes stacked
@@ -432,23 +470,25 @@ def run_game(nets, render=False, return_stats=False):
     for p in players:
         grid[p['y']][p['x']] = p['color_idx'] + 1
 
-    step         = 0
-    kill_steps   = [[] for _ in range(n)]   # step number of each kill per player
-    death_step   = [-1] * n                 # step when player died (-1 = alive/survived)
-    wall_death   = [False] * n              # True if killed by border or own trail
-    last_turned  = [-2] * n                 # step of last turn (-2 so turn is free on step 0)
-    close_steps  = [0] * n                  # steps spent within CLOSE_DIST of an opponent
+    step              = 0
+    kill_steps        = [[] for _ in range(n)]   # step number of each kill per player
+    death_step        = [-1] * n                 # step when player died (-1 = alive/survived)
+    wall_death        = [False] * n              # True if killed by border or own trail
+    last_turned       = [-2] * n                 # step of last turn (-2 so turn is free on step 0)
+    close_steps       = [0] * n                  # steps spent within CLOSE_DIST of an opponent
+    opp_trapped_steps = [0] * n                  # steps where nearest opponent had ≤3 free ahead (Trapper)
 
     for step in range(MAX_STEPS):
         if render:
             global _speed_level
-            for e in pygame.event.get():
-                if e.type == QUIT:
-                    pygame.quit(); sys.exit()
-                if e.type == KEYDOWN:
-                    if e.key in (K_SPACE, K_s):
-                        _speed_level = (_speed_level + 1) % len(_SPEEDS)
-                    if e.key == K_ESCAPE: pygame.quit(); sys.exit()
+            if step % _EVENT_EVERY[_speed_level] == 0:
+                for e in pygame.event.get():
+                    if e.type == QUIT:
+                        pygame.quit(); sys.exit()
+                    if e.type == KEYDOWN:
+                        if e.key in (K_SPACE, K_s):
+                            _speed_level = (_speed_level + 1) % len(_SPEEDS)
+                        if e.key == K_ESCAPE: pygame.quit(); sys.exit()
             fps = _SPEEDS[_speed_level]
             if fps is not None:
                 _clk.tick(fps)
@@ -457,17 +497,22 @@ def run_game(nets, render=False, return_stats=False):
         if alive_count <= 1:
             break
 
-        # ── Track proximity — penalise circling near opponent without killing ────
+        # ── Track proximity and trapping ─────────────────────────────────────────
         CLOSE_DIST = 6
         for i, p in enumerate(players):
             if not p['alive']:
                 continue
-            for other in players:
-                if other is p or not other['alive']:
-                    continue
-                if abs(p['x'] - other['x']) + abs(p['y'] - other['y']) <= CLOSE_DIST:
-                    close_steps[i] += 1
-                    break
+            alive_opps = [players[j] for j in range(n) if j != i and players[j]['alive']]
+            if not alive_opps:
+                continue
+            nearest = min(alive_opps, key=lambda o: abs(o['x'] - p['x']) + abs(o['y'] - p['y']))
+            dist = abs(p['x'] - nearest['x']) + abs(p['y'] - nearest['y'])
+            if dist <= CLOSE_DIST:
+                close_steps[i] += 1
+            # Trapper: count steps where nearest opponent has ≤3 free steps ahead
+            odx, ody = DV[nearest['dir']]
+            if _ray_steps(grid, nearest['x'], nearest['y'], odx, ody) <= 3:
+                opp_trapped_steps[i] += 1
 
         # ── Decide actions ───────────────────────────────────────────────────────
         actions = []
@@ -485,7 +530,7 @@ def run_game(nets, render=False, return_stats=False):
             actions.append(action)
 
         # ── Apply turns (1-step cooldown prevents same-step double-turns) ─────────
-        TURN_COOLDOWN = 1
+        TURN_COOLDOWN = 3
         for i, p in enumerate(players):
             if not p['alive'] or actions[i] is None:
                 continue
@@ -551,10 +596,7 @@ def run_game(nets, render=False, return_stats=False):
         if sum(1 for p in players if p['alive']) <= 1:
             break
 
-    # ── Fitness ──────────────────────────────────────────────────────────────────
-    # +1 per frame survived — continuous gradient, wall deaths cost all future frames
-    # +20 for winning — last player alive gets a flat bonus
-    # Nothing else.
+    # ── Fitness ───────────────────────────────────────────────────────────────────
     WIN_BONUS = 20
 
     kill_counts = [len(ks) for ks in kill_steps]
@@ -566,7 +608,27 @@ def run_game(nets, render=False, return_stats=False):
             all(death_step[j] >= 0 and death_step[j] < death_step[i]
                 for j in range(n) if j != i)
         )
-        scores.append(alive_steps + (WIN_BONUS if winner else 0))
+        w       = WIN_BONUS if winner else 0
+        n_kills = len(kill_steps[i])
+        if PERSONALITIES:
+            # Per-slot personality fitness
+            #   0  Survivor  +1/step  +20 win
+            #   1  Killer    +1/step  +20 win  +50/kill
+            #   2  Trapper   +1/step  +20 win  +30 per step opponent cornered
+            #   3  Rusher    +100/kill  +20 win  (no survival bonus)
+            slot = i % 4
+            if slot == 0:
+                score = alive_steps + w
+            elif slot == 1:
+                score = alive_steps + w + n_kills * 50
+            elif slot == 2:
+                score = alive_steps + w + opp_trapped_steps[i] * 30
+            else:
+                score = n_kills * 100 + w
+        else:
+            # Default: +1/step survived, +20 for winning
+            score = alive_steps + w
+        scores.append(score)
 
     if return_stats:
         return scores, kill_counts
@@ -692,6 +754,21 @@ def eval_genomes(genomes, config):
             f"hof size={len(hall_of_fame)}"
         )
 
+    _log_gen({
+        'run_id':             RUN_ID,
+        'gen':                generation,
+        'best_fit':           best_fit,
+        'avg_fit':            avg_fit,
+        'min_fit':            min(g.fitness for g in genome_list),
+        'avg_kills':          avg_kills,
+        'best_kills_vs_bots': bot_kill_count,
+        'hof_win_rate':       hof_win_rate,
+        'hof_size':           len(hall_of_fame),
+        'n_species':          len(_neat_pop.species.species) if _neat_pop else 0,
+        'personalities':      int(PERSONALITIES),
+        'num_players':        NUM_PLAYERS,
+    })
+
 
 # ── Entry point ──────────────────────────────────────────────────────────────────
 
@@ -705,11 +782,15 @@ if __name__ == '__main__':
     )
 
     p = neat.Population(config)
+    _neat_pop = p
+
     if not SIMULATE:
         p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
 
+    _init_log()
+    print(f'Logging to {_LOG_FILE}')
     winner = p.run(eval_genomes, 200)
     print(f'\nBest genome – fitness: {winner.fitness:.2f}')
 
