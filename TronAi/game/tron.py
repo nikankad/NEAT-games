@@ -18,7 +18,7 @@ sys.path.insert(0, _ROOT)
 import utils.visualize as visualize
 
 # ── Tune this to add more players ───────────────────────────────────────────────
-NUM_PLAYERS = 2   # how many light cycles compete per game (2–6)
+NUM_PLAYERS = 4 # how many light cycles compete per game (2–6)
 
 # ── Grid / display constants (scale with player count) ──────────────────────────
 # More players → bigger grid so the arena doesn't feel cramped.
@@ -59,7 +59,7 @@ def _make_palettes(n):
         h = i / n
         colors.append(_hsv_to_rgb(h, 0.75, 0.85))       # flat trail
         dead_colors.append(_hsv_to_rgb(h, 0.30, 0.45))  # greyed-out dead trail
-        heads.append(_hsv_to_rgb(h, 0.75, 0.85))        # same as trail (no glow)
+        heads.append((255, 255, 255))                    # white head, distinct from trail
         labels.append(f'P{i+1}')
     return colors, dead_colors, heads, labels
 
@@ -552,26 +552,21 @@ def run_game(nets, render=False, return_stats=False):
             break
 
     # ── Fitness ──────────────────────────────────────────────────────────────────
-    # kill:              +3000  — always dominates; one kill beats full survival
-    # survival:          +1/step — tiebreaker
-    # death penalty:     -500   — dying is bad but worth risking for a kill
-    # wasted proximity:  -2/step spent close to opponent without getting a kill
-    #                    this directly punishes circling — being near someone
-    #                    and not finishing them costs more than staying away
-    KILL_BONUS     = 3000
-    DEATH_PEN      = 500
-    ORBIT_PEN      = 2     # per step spent close without a kill
+    # +1 per frame survived — continuous gradient, wall deaths cost all future frames
+    # +20 for winning — last player alive gets a flat bonus
+    # Nothing else.
+    WIN_BONUS = 20
 
     kill_counts = [len(ks) for ks in kill_steps]
     scores = []
     for i in range(n):
-        alive_steps  = death_step[i] if death_step[i] >= 0 else step
-        survived     = death_step[i] == -1
-        kills        = len(kill_steps[i]) * KILL_BONUS
-        death_pen    = 0 if survived else DEATH_PEN
-        # Wasted proximity: close_steps that didn't result in a kill
-        wasted_close = 0 if kill_steps[i] else close_steps[i] * ORBIT_PEN
-        scores.append(alive_steps + kills - death_pen - wasted_close)
+        alive_steps = death_step[i] if death_step[i] >= 0 else step
+        winner = (death_step[i] == -1) or (
+            death_step[i] >= 0 and
+            all(death_step[j] >= 0 and death_step[j] < death_step[i]
+                for j in range(n) if j != i)
+        )
+        scores.append(alive_steps + (WIN_BONUS if winner else 0))
 
     if return_stats:
         return scores, kill_counts
