@@ -113,13 +113,11 @@ class InvertedPendulum(object):
         # Update cart position based on velocity
         self.x_cart += self.v_cart
 
-        # Boundary conditions: cart stops when it hits the walls
+        # Boundary conditions: cart wraps around to the other side
         if self.x_cart <= self.CARTWIDTH / 2:
-            self.x_cart = self.CARTWIDTH / 2
-            self.v_cart = 0
-        elif self.x_cart >= self.WINDOWWIDTH - self.CARTWIDTH / 2:
             self.x_cart = self.WINDOWWIDTH - self.CARTWIDTH / 2
-            self.v_cart = 0
+        elif self.x_cart >= self.WINDOWWIDTH - self.CARTWIDTH / 2:
+            self.x_cart = self.CARTWIDTH / 2
 
         # Update pendulum angle: term from angular velocity + term from motion of cart
         self.theta += self.omega + self.v_cart * \
@@ -140,7 +138,7 @@ class InvertedPendulum(object):
             raise RuntimeError("action must be 'Left', 'Right', or 'None'")
 
         # Check if pendulum has fallen (angle exceeds 90 degrees)
-        if (abs(self.theta) >= np.pi / 2) or self.x_cart <= self.CARTWIDTH / 2 or self.x_cart >= WINDOWDIMS[0] - self.CARTWIDTH / 2:
+        if abs(self.theta) >= np.pi / 2:
             self.is_dead = True
 
         return self.time, self.x_cart, self.v_cart, self.theta, self.omega

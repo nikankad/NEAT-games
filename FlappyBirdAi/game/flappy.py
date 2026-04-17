@@ -251,7 +251,7 @@ def run_bird(genomes, config):
                     break
 
             inputs = [
-                bird.rect[1] / SCREEN_HEIGHT,  # 0-1 range
+                bird.rect[1] / SCREEN_HEIGHT,  # 0-1 range``
                 (next_pipe.rect[0] - bird.rect[0]) / SCREEN_WIDHT,
                 (next_pipe.rect.top - PIPE_GAP / 2 -
                  bird.rect.centery) / SCREEN_HEIGHT,

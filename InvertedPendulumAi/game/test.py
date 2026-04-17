@@ -54,13 +54,11 @@ class InvertedPendulum(object):
             raise RuntimeError("tried to call update_state while state was dead")
         self.time += 1
         self.x_cart += self.v_cart
-        # cart stops when it hits the wall
-        if self.x_cart <= self.CARTWIDTH / 2:
-            self.x_cart = self.CARTWIDTH / 2
-            self.v_cart = 0
-        elif self.x_cart >= self.WINDOWWIDTH - self.CARTWIDTH / 2:
+        # cart wraps around when it hits the edge
+        if self.x_cart < self.CARTWIDTH / 2:
             self.x_cart = self.WINDOWWIDTH - self.CARTWIDTH / 2
-            self.v_cart = 0
+        elif self.x_cart > self.WINDOWWIDTH - self.CARTWIDTH / 2:
+            self.x_cart = self.CARTWIDTH / 2
         # term from angular velocity + term from motion of cart
         self.theta += self.omega + self.v_cart * np.cos(self.theta) / float(self.PENDULUMLENGTH)
         self.omega += self.GRAVITY * np.sin(self.theta) / float(self.PENDULUMLENGTH)
